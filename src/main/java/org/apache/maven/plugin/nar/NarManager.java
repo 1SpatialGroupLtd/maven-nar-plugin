@@ -335,15 +335,19 @@ public class NarManager
 
     private List getDependencies( String scope )
     {
-        if ( scope.equals( Artifact.SCOPE_TEST ) )
+        List dependencies = new ArrayList();
+
+        for ( Iterator i = project.getArtifacts().iterator(); i.hasNext(); )
         {
-			return project.getTestArtifacts();
+            Artifact a = (Artifact) i.next();
+            if ( a.getScope().equals( scope )
+                || scope.equals(Artifact.SCOPE_TEST)) //Maven uses all artifacts in the test phase
+            {
+                dependencies.add(a);
+            }
         }
-        else if ( scope.equals( Artifact.SCOPE_RUNTIME ) )
-        {
-			return project.getRuntimeArtifacts();
-		}
-		return project.getCompileArtifacts();
+
+        return dependencies;
 	}
 
     public final void downloadAttachedNars( List/* <NarArtifacts> */narArtifacts, List remoteRepositories,
