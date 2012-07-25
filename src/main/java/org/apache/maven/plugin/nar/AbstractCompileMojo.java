@@ -20,11 +20,17 @@ package org.apache.maven.plugin.nar;
  */
 
 import java.io.File;
+import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Iterator;
 import java.util.List;
 
 import org.apache.maven.plugin.MojoExecutionException;
+import org.apache.maven.plugin.MojoFailureException;
 import org.apache.tools.ant.Project;
+import org.codehaus.plexus.util.FileUtils;
+import org.codehaus.plexus.util.StringUtils;
 
 /**
  * @author Mark Donszelmann
@@ -262,6 +268,14 @@ public abstract class AbstractCompileMojo
         return dependencyLibOrder;
     }
 
+    /**
+     * Gets the NarInfo associated with this module.
+     *
+     * Looks for additional properties first in target/classes/META-INF/nar/<groupId>/<artifactId>
+     * then in src/main/resources/META-INF/nar/<groupId>/<artifactId>
+     * @return the loaded NarInfo
+     * @throws MojoExecutionException
+     */
     protected final NarInfo getNarInfo()
         throws MojoExecutionException
     {
@@ -270,8 +284,13 @@ public abstract class AbstractCompileMojo
         	String groupId = getMavenProject().getGroupId();
         	String artifactId = getMavenProject().getArtifactId();
         	
-            File propertiesDir = new File( getMavenProject().getBasedir(), "src/main/resources/META-INF/nar/" + groupId + "/" + artifactId );
-            File propertiesFile = new File( propertiesDir, NarInfo.NAR_PROPERTIES );
+            File propertiesDir = getTargetPropertiesDir();
+            File propertiesFile = getPropertiesFile( propertiesDir );
+            if( !propertiesFile.exists() )
+            {
+                propertiesDir = new File( getMavenProject().getBasedir(), "src/main/resources/META-INF/nar/" + groupId + "/" + artifactId );
+                propertiesFile = getPropertiesFile( propertiesDir );
+            }
 
             narInfo = new NarInfo( 
                 groupId, artifactId,
@@ -281,4 +300,77 @@ public abstract class AbstractCompileMojo
         }
         return narInfo;
     }
+
+	private File getPropertiesFile(File propertiesDir) {
+		File propertiesFile = new File( propertiesDir, NarInfo.NAR_PROPERTIES );
+		return propertiesFile;
+	}
+
+    /**
+     * Saves nar info to file a s a properties file (nar.properties)
+     * under target/classes/META-INF/nar/<groupId>/<artifactId>
+     * @param narInfo the info to write
+     * @throws MojoExecutionException
+     */
+    protected void saveNarInfoToFile(NarInfo narInfo)
+        throws MojoExecutionException
+    {
+        try
+        {
+            File propertiesDir = getTargetPropertiesDir();
+            if ( !propertiesDir.exists() )
+            {
+                propertiesDir.mkdirs();
+            }
+            File propertiesFile = getPropertiesFile(propertiesDir);
+            narInfo.writeToFile( propertiesFile );
+        }
+        catch ( IOException ioe )
+        {
+            throw new MojoExecutionException( "Cannot write nar properties file", ioe );
+        }
+    }
+
+	private File getTargetPropertiesDir()
+	{
+		File propertiesDir =
+		    new File( getOutputDirectory(), "classes/META-INF/nar/" + getMavenProject().getGroupId() + "/"
+		        + getMavenProject().getArtifactId() );
+		return propertiesDir;
+	}
+
+	protected List getSourcesFor(Compiler compiler) throws MojoFailureException,
+			MojoExecutionException
+	{
+		List srcDirs = compiler.getSourceDirectories();
+		return getSourcesFromSourceDirectories(compiler, srcDirs);
+	}
+
+	private List getSourcesFromSourceDirectories(Compiler compiler, List srcDirs)
+			throws MojoFailureException, MojoExecutionException {
+		try
+		{
+			List files = new ArrayList();
+			for ( Iterator i = srcDirs.iterator(); i.hasNext(); )
+			{
+				File dir = (File) i.next();
+				if ( dir.exists() )
+				{
+					files.addAll( FileUtils.getFiles( dir, StringUtils.join( compiler.getIncludes().iterator(), "," ),
+							null ) );
+				}
+			}
+			return files;
+		}
+		catch ( IOException e )
+		{
+			return Collections.EMPTY_LIST;
+		}
+	}
+
+	protected List getTestSourcesFor(Compiler compiler) throws MojoFailureException, MojoExecutionException
+	{
+		List srcDirs = compiler.getTestSourceDirectories();
+		return getSourcesFromSourceDirectories(compiler, srcDirs);
+	}
 }

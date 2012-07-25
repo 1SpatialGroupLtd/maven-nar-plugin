@@ -21,8 +21,6 @@ package org.apache.maven.plugin.nar;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Collections;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
@@ -43,8 +41,6 @@ import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.plugin.MojoFailureException;
 import org.apache.tools.ant.BuildException;
 import org.apache.tools.ant.Project;
-import org.codehaus.plexus.util.FileUtils;
-import org.codehaus.plexus.util.StringUtils;
 
 /**
  * Compiles native source files.
@@ -105,30 +101,6 @@ public class NarCompileMojo
         catch ( IOException e )
         {
             throw new MojoExecutionException( "NAR: could not copy include files", e );
-        }
-    }
-
-    private List getSourcesFor( Compiler compiler )
-        throws MojoFailureException, MojoExecutionException
-    {
-        try
-        {
-            List files = new ArrayList();
-            List srcDirs = compiler.getSourceDirectories();
-            for ( Iterator i = srcDirs.iterator(); i.hasNext(); )
-            {
-                File dir = (File) i.next();
-                if ( dir.exists() )
-                {
-                    files.addAll( FileUtils.getFiles( dir, StringUtils.join( compiler.getIncludes().iterator(), "," ),
-                                                      null ) );
-                }
-            }
-            return files;
-        }
-        catch ( IOException e )
-        {
-            return Collections.EMPTY_LIST;
         }
     }
 

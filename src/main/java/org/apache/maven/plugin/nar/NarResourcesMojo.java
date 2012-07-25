@@ -59,13 +59,14 @@ public class NarResourcesMojo
         throws MojoExecutionException, MojoFailureException
     {
         // noarch resources
-        try
+        String version = getMavenProject().getVersion();
+		try
         {
             int copied = 0;
             File noarchDir = new File( resourceDirectory, NarConstants.NAR_NO_ARCH );
             if ( noarchDir.exists() )
             {
-                File noarchDstDir = getLayout().getNoArchDirectory( getTargetDirectory(), getMavenProject().getArtifactId(), getMavenProject().getVersion() );
+                File noarchDstDir = getLayout().getNoArchDirectory( getTargetDirectory(), getMavenProject().getArtifactId(), version );
                 getLog().debug( "Copying noarch from " + noarchDir + " to " + noarchDstDir );
                 copied += NarUtil.copyDirectoryStructure( noarchDir, noarchDstDir, null, NarUtil.DEFAULT_EXCLUDES );
             }
@@ -103,8 +104,36 @@ public class NarResourcesMojo
                 {
                     File aolFile = new File( aolDir, aol[i] );
                     copyResources( aolFile, aolFile.getName() );
+                    //We need to add library files that don not follow the nar naming convention to the modules properties file.
+                    addLibFilesToProperties( version, aol[i] );
                 }
             }
         }
     }
+
+    // Adds library files to the narInfo properties for this module.
+    // Only file names, not their extensions should be added.
+    private void addLibFilesToProperties(String version, String aol)
+		throws MojoExecutionException, MojoFailureException
+    {
+		NarInfo narInfo = getNarInfo();
+		for ( Iterator it = getLibraries().iterator(); it.hasNext(); )
+		{
+		    Library library = (Library) it.next();
+		    String type = library.getType();
+		    File libDstDir =
+		        getLayout().getLibDirectory( getTargetDirectory(), getMavenProject().getArtifactId(),
+		                                     version, aol, type );
+
+		    getLog().debug( "Adding version number to lib files in " + libDstDir);
+		    File[] libFiles = libDstDir.listFiles(); //getLibFilesInDirectory(libDstDir);
+		    for( int index = 0; index < libFiles.length; index++ )
+		    {
+				File file = libFiles[index];
+				int extensionIndex = file.getName().indexOf( "." );
+				narInfo.addLibrary(new AOL(aol), file.getName().substring( 0, extensionIndex ) );
+		    }
+		}
+        saveNarInfoToFile(narInfo);
+	}
 }

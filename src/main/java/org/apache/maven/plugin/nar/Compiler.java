@@ -257,6 +257,11 @@ public abstract class Compiler
         return getSourceDirectories( "dummy" );
     }
 
+    public final List getTestSourceDirectories()
+    {
+        return getSourceDirectories( TEST );
+    }
+
     private List/* <File> */getSourceDirectories( String type )
     {
         List sourceDirectories = new ArrayList();
@@ -627,5 +632,10 @@ public abstract class Compiler
                 NarUtil.copyDirectoryStructure( path, targetDirectory, null, NarUtil.DEFAULT_EXCLUDES );
             }
         }
+    }
+
+    public final List getDefines()
+    {
+        return defines == null ? new ArrayList() : defines;
     }
 }

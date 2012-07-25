@@ -38,6 +38,8 @@ import org.apache.maven.plugin.logging.Log;
 public class NarInfo
 {
 
+    private static final String LIBS_NAMES = "libs.names";
+
     public static final String NAR_PROPERTIES = "nar.properties";
 
     private String groupId, artifactId, version;
@@ -164,7 +166,7 @@ public class NarInfo
 
     public final String getLibs( AOL aol )
     {
-        return getProperty( aol, "libs.names", artifactId + "-" + version );
+        return getProperty( aol, LIBS_NAMES, artifactId + "-" + version );
     }
 
     public final String getSysLibs( AOL aol )
@@ -221,5 +223,23 @@ public class NarInfo
     public final File getProperty( AOL aol, String key, File defaultValue )
     {
         return new File( getProperty( aol, key, defaultValue.getPath() ) );
+    }
+
+    public void addLibrary(AOL aol, String libName)
+    {
+        String currentLibs = getLibs( aol );
+        //I couldn't get a currentLibs.matches() to pick up libName without a trailing hyphen, so had to do it the longwinded way.
+        boolean addLib = true;
+        String[] libs = currentLibs.split( ", " );
+        for( int i = 0; i < libs.length; i++ )
+        {
+            if( libs[i].equals( libName ) )
+            {
+                addLib = false;
+                break;
+            }
+        }
+        if( addLib )
+            setProperty( aol, LIBS_NAMES, currentLibs + ", " + libName );
     }
 }
