@@ -21,7 +21,7 @@
 
   <parent>
     <artifactId>maven-plugins</artifactId>
-    <groupId>org.apache.maven.plugins</groupId>
+    <groupId>com.onespatial</groupId>
     <version>18</version>
   </parent>
 
@@ -32,45 +32,64 @@
   <name>Maven NAR Plugin</name>
   <description>
     This plugin compiles native code and publishes native artifacts in the for of nar files.
+	This is a fork of http://duns.github.com/maven-nar-plugin/ with some bugfixes and enhamcements
   </description>
-  <url>http://duns.github.com/maven-nar-plugin/</url>
+  <url>https://github.com/1spatial/maven-nar-plugin</url>
 
-  <!-- deploy to duns' github repository -->
+  <repositories>
+    <repository>
+      <releases>
+        <enabled>true</enabled>
+        <updatePolicy>never</updatePolicy>
+      </releases>
+      <snapshots>
+        <enabled>true</enabled>
+        <updatePolicy>always</updatePolicy>
+      </snapshots>
+      <id>central</id>
+      <url>http://central</url>
+    </repository>
+  </repositories>
+  <pluginRepositories>
+    <pluginRepository>
+      <releases>
+        <enabled>true</enabled>
+        <updatePolicy>never</updatePolicy>
+      </releases>
+      <snapshots>
+        <enabled>true</enabled>
+        <updatePolicy>always</updatePolicy>
+      </snapshots>
+      <id>central</id>
+      <url>http://central</url>
+    </pluginRepository>
+  </pluginRepositories>
+
   <distributionManagement>
     <repository>
-      <id>duns-maven-releases</id>
-      <name>Duns' Maven Releases</name>
-        <url>file:///Users/duns/sonatype/git/maven-releases</url>
-      </repository>
+      <id>releases</id>
+      <name>Internal Releases</name>
+      <url>http://mavenrepo/nexus/content/repositories/releases</url>
+    </repository>
     <snapshotRepository>
-      <uniqueVersion>false</uniqueVersion>
-      <id>duns-maven-snapshots</id>
-      <name>Duns' Maven Snapshots</name>
-      <url>file:///Users/duns/sonatype/git/maven-snapshots</url>
+      <id>snapshots</id>
+      <name>Internal Releases</name>
+      <url>http://mavenrepo/nexus/content/repositories/snapshots</url>
     </snapshotRepository>
-  <!-- temporarily until we have a fixed site -->
-    <site>
-      <id>local</id>
-      <url>file:///Users/duns/sonatype/git/maven-nar-plugin-site</url>
-    </site>
   </distributionManagement>
 
   <prerequisites>
-    <maven>2.0.9</maven>
+    <maven>3.0.3</maven>
   </prerequisites>
 
   <scm>
-    <connection>scm:git:git://github.com/duns/maven-nar-plugin.git</connection>
-    <developerConnection>scm:git:git://github.com/duns/maven-nar-plugin.git</developerConnection>
-    <url>http://github.com/duns/maven-nar-plugin</url>
+    <connection>scm:git:https://github.com/1spatial/maven-nar-plugin.git</connection>
+    <developerConnection>scm:git:https://github.com/1spatial/maven-nar-plugin.git</developerConnection>
+    <url>scm:git:https://github.com/1spatial/maven-nar-plugin.git</url>
   </scm>
-  <issueManagement>
-    <system>jira</system>
-    <url>http://issues.sonatype.org/browse/NAR</url>
-  </issueManagement>
 
   <properties>
-    <mavenVersion>2.0.9</mavenVersion>
+    <mavenVersion>3.0.3</mavenVersion>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
   </properties>
 
@@ -184,6 +203,14 @@
         <configuration>
           <source>1.4</source>
           <target>1.4</target>      
+        </configuration>
+      </plugin>
+      <plugin>
+        <artifactId>maven-release-plugin</artifactId>
+        <version>2.3.2</version>
+        <configuration>
+          <autoVersionSubmodules>true</autoVersionSubmodules>
+          <preparationGoals>clean</preparationGoals>
         </configuration>
       </plugin>
     </plugins>
