@@ -158,7 +158,7 @@
       </exclusions> 
     </dependency>
     <dependency>
-      <groupId>net.sf.antcontrib</groupId>
+      <groupId>com.onespatial</groupId>
       <artifactId>cpptasks-parallel</artifactId>
       <version>1.0-beta-5-parallel-1-SNAPSHOT</version>
     </dependency>
