@@ -47,4 +47,11 @@ public interface NarFileLayout
      * @return
      */
     String getBinDirectory(String aol );
+
+    /**
+     * Specifies what configuration is in use.  An empty string means no configuration (introduced in NarFileLayout11)
+     *
+     * @return
+     */
+    String getConfigString();
 }

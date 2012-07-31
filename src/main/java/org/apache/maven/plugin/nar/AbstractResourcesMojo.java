@@ -116,7 +116,7 @@ public abstract class AbstractResourcesMojo
         int copied = 0;
 
         // copy libraries
-        File libDir = new File( srcDir, resourceLibDir );
+        File libDir = new File(new File( srcDir, resourceLibDir ), getLayout().getConfiguration());
         if ( libDir.exists() )
         {
             // create all types of libs

@@ -130,10 +130,10 @@ public abstract class AbstractNarMojo
     /**
      * Layout to be used for building and unpacking artifacts
      * 
-     * @parameter expression="${nar.layout}" default-value="org.apache.maven.plugin.nar.NarLayout21"
+     * @parameter expression="${nar.layout}" default-value="org.apache.maven.plugin.nar.NarLayout22"
      * @required
      */
-    private String layout;
+    protected String layout;
     
     private NarLayout narLayout;
 
@@ -143,6 +143,15 @@ public abstract class AbstractNarMojo
      * @required
      */
     private MavenProject mavenProject;
+
+    /**
+     * Do we build and link in debug or release configuration.
+     * Changes the layout used for building and unpacking artifacts
+     *
+     * @parameter expression="${nar.debug}" default-value="false"
+     * @required
+     */
+    protected boolean debug;
 
     private AOL aolId;
 
@@ -237,13 +246,18 @@ public abstract class AbstractNarMojo
         return testUnpackDirectory;
     }
 
+    protected final String getLayoutName()
+    {
+        return layout;
+    }
+
     protected final NarLayout getLayout()
         throws MojoExecutionException
     {
         if ( narLayout == null )
         {
             narLayout =
-                AbstractNarLayout.getLayout( layout, getLog() );
+                AbstractNarLayout.getLayout( this );
         }
         return narLayout;
     }
@@ -251,6 +265,11 @@ public abstract class AbstractNarMojo
     protected final MavenProject getMavenProject()
     {
         return mavenProject;
+    }
+
+    protected boolean getDebug()
+    {
+        return debug;
     }
 
     public final void execute()

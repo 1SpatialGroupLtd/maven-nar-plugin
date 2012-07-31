@@ -29,15 +29,16 @@ import org.apache.maven.plugin.MojoFailureException;
 import org.apache.maven.plugin.logging.SystemStreamLog;
 import org.apache.maven.plugin.nar.AbstractNarLayout;
 import org.apache.maven.plugin.nar.Library;
+import org.apache.maven.plugin.nar.NarConstants;
 import org.apache.maven.plugin.nar.NarFileLayout;
 import org.apache.maven.plugin.nar.NarFileLayout10;
 import org.apache.maven.plugin.nar.NarLayout;
-import org.apache.maven.plugin.nar.NarLayout20;
+import org.apache.maven.plugin.nar.NarLayout22;
 
 /**
- * @author Mark Donszelmann (Mark.Donszelmann@gmail.com)
+ * @author Mike Boyd
  */
-public class TestNarLayout20
+public class TestNarLayout22
     extends TestCase
 {
     private NarFileLayout fileLayout;
@@ -46,9 +47,15 @@ public class TestNarLayout20
 
     private File baseDir;
 
+    private String artifactId;
+
+    private String version;
+
     private String aol;
 
     private String type;
+
+    private DummyNarMojo dummy;
 
     /*
      * (non-Javadoc)
@@ -57,59 +64,79 @@ public class TestNarLayout20
     protected void setUp()
         throws Exception
     {
-        new SystemStreamLog();
         fileLayout = new NarFileLayout10();
-        layout = new NarLayout20( new DummyNarMojo() );
+        artifactId = "artifactId";
+        version = "version";
         baseDir = new File( "/Users/maven" );
         aol = "x86_64-MacOSX-g++";
         type = Library.SHARED;
+
+        new SystemStreamLog();
+        dummy = new DummyNarMojo("NarLayout22");
     }
 
     public final void testGetLayout()
         throws MojoExecutionException
     {
-        AbstractNarLayout.getLayout( new DummyNarMojo("NarLayout20") );
+        AbstractNarLayout.getLayout( dummy );
+        dummy.setDebug(true);
+        AbstractNarLayout.getLayout( dummy );
     }
 
     /**
-     * Test method for {@link org.apache.maven.plugin.nar.NarLayout20#getIncludeDirectory(java.io.File)}.
-     * 
+     * Test method for {@link org.apache.maven.plugin.nar.NarLayout22#getIncludeDirectory(java.io.File)}.
+     *
      * @throws MojoFailureException
      * @throws MojoExecutionException
      */
     public final void testGetIncludeDirectory()
         throws MojoExecutionException, MojoFailureException
     {
-        Assert.assertEquals( new File( baseDir, fileLayout.getIncludeDirectory() ),
-                             layout.getIncludeDirectory( baseDir, null, null ) );
+    	File expected = new File( baseDir, artifactId + "-" + version + "-" + NarConstants.NAR_NO_ARCH
+                + File.separator + fileLayout.getIncludeDirectory() );
+
+        layout = new NarLayout22(dummy);
+        Assert.assertEquals( expected, layout.getIncludeDirectory( baseDir, artifactId, version ) );
+        dummy.setDebug(true);
+        layout = new NarLayout22(dummy);
+        Assert.assertEquals( expected, layout.getIncludeDirectory( baseDir, artifactId, version ) );
     }
 
     /**
      * Test method for
-     * {@link org.apache.maven.plugin.nar.NarLayout20#getLibDirectory(java.io.File, java.lang.String, java.lang.String)}
-     * .
-     * 
+     * {@link org.apache.maven.plugin.nar.NarLayout22#getLibDirectory(java.io.File, java.lang.String, java.lang.String)}
+     *
      * @throws MojoFailureException
      * @throws MojoExecutionException
      */
     public final void testGetLibDirectory()
         throws MojoExecutionException, MojoFailureException
     {
-        Assert.assertEquals( new File( baseDir, fileLayout.getLibDirectory( aol, type ) ),
-                             layout.getLibDirectory( baseDir, null, null, aol, type ) );
+        File expectedLibDir = new File( baseDir, artifactId + "-" + version + "-" + aol + "-" + type + File.separator
+            + fileLayout.getLibDirectory( aol, type ) );
+        layout = new NarLayout22(dummy);
+        Assert.assertEquals( new File(expectedLibDir, "release"), layout.getLibDirectory( baseDir, artifactId, version, aol, type ) );
+        dummy.setDebug(true);
+        layout = new NarLayout22(dummy);
+        Assert.assertEquals( new File(expectedLibDir, "debug"), layout.getLibDirectory( baseDir, artifactId, version, aol, type ) );
     }
 
     /**
-     * Test method for {@link org.apache.maven.plugin.nar.NarLayout20#getBinDirectory(java.io.File, java.lang.String)}.
-     * 
+     * Test method for {@link org.apache.maven.plugin.nar.NarLayout22#getBinDirectory(java.io.File, java.lang.String)}.
+     *
      * @throws MojoFailureException
      * @throws MojoExecutionException
      */
     public final void testGetBinDirectory()
         throws MojoExecutionException, MojoFailureException
     {
-        Assert.assertEquals( new File( baseDir, fileLayout.getBinDirectory( aol ) ), layout.getBinDirectory( baseDir,
-                                                                                                             null,
-                                                                                                             null, aol ) );
+        File expectedBindir = new File( baseDir, artifactId + "-" + version + "-" + aol + "-" + "executable"
+            + File.separator + fileLayout.getBinDirectory( aol ) );
+
+        layout = new NarLayout22(dummy);
+        Assert.assertEquals( new File(expectedBindir, "release"), layout.getBinDirectory( baseDir, artifactId, version, aol ) );
+        dummy.setDebug(true);
+        layout = new NarLayout22(dummy);
+        Assert.assertEquals( new File(expectedBindir, "debug"), layout.getBinDirectory( baseDir, artifactId, version, aol ) );
     }
 }

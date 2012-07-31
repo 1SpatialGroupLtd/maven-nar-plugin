@@ -346,6 +346,13 @@ public class Linker
                 linker.addConfiguredLinkerArg( arg );
             }
         }
+        // Add debug option from mojo
+        if(mojo.getDebug())
+        {
+            LinkerArgument arg = new LinkerArgument();
+            arg.setValue("/DEBUG");
+            linker.addConfiguredLinkerArg(arg);
+        }
 
         if ( optionSet != null )
         {

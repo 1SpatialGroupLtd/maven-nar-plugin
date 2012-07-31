@@ -26,7 +26,6 @@ import junit.framework.TestCase;
 
 import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.plugin.MojoFailureException;
-import org.apache.maven.plugin.logging.Log;
 import org.apache.maven.plugin.logging.SystemStreamLog;
 import org.apache.maven.plugin.nar.AbstractNarLayout;
 import org.apache.maven.plugin.nar.Library;
@@ -43,8 +42,6 @@ public class TestNarLayout21
     extends TestCase
 {
     private NarFileLayout fileLayout;
-
-    private Log log;
 
     private NarLayout layout;
 
@@ -72,14 +69,14 @@ public class TestNarLayout21
         aol = "x86_64-MacOSX-g++";
         type = Library.SHARED;
 
-        log = new SystemStreamLog();
-        layout = new NarLayout21( log );
+        new SystemStreamLog();
+        layout = new NarLayout21( new DummyNarMojo() );
     }
 
     public final void testGetLayout()
         throws MojoExecutionException
     {
-        AbstractNarLayout.getLayout( "NarLayout21", log );
+        AbstractNarLayout.getLayout( new DummyNarMojo("NarLayout21") );
     }
 
     /**

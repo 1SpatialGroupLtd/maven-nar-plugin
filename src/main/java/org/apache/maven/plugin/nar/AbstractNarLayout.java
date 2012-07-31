@@ -44,9 +44,9 @@ public abstract class AbstractNarLayout
 {
     private Log log;
 
-    protected AbstractNarLayout( Log log )
+    protected AbstractNarLayout( AbstractNarMojo abstractNarMojo )
     {
-        this.log = log;
+        this.log = abstractNarMojo.getLog();
     }
 
     protected Log getLog()
@@ -149,22 +149,28 @@ public abstract class AbstractNarLayout
         }
     }
 
+    public String getConfiguration()
+    {
+        return "";
+    }
+
     /**
      * @return
      * @throws MojoExecutionException
      */
-    public static NarLayout getLayout( String layoutName, Log log )
+    public static NarLayout getLayout( AbstractNarMojo abstractNarMojo )
         throws MojoExecutionException
     {
+        String layoutName = abstractNarMojo.getLayoutName();
         String className =
             layoutName.indexOf( '.' ) < 0 ? NarLayout21.class.getPackage().getName() + "." + layoutName : layoutName;
-        log.debug( "Using " + className );
+        abstractNarMojo.getLog().debug( "Using " + className );
         Class cls;
         try
         {
             cls = Class.forName( className );
-            Constructor ctor = cls.getConstructor( new Class[] { Log.class } );
-            return (NarLayout) ctor.newInstance( new Object[] { log } );
+            Constructor ctor = cls.getConstructor( new Class[] { AbstractNarMojo.class } );
+            return (NarLayout) ctor.newInstance( new Object[] { abstractNarMojo } );
         }
         catch ( ClassNotFoundException e )
         {
@@ -195,5 +201,4 @@ public abstract class AbstractNarLayout
             throw new MojoExecutionException( "Cannot invokector(Log) for layout " + className, e );
         }
     }
-
 }

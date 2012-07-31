@@ -5,7 +5,6 @@ import java.io.IOException;
 
 import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.plugin.MojoFailureException;
-import org.apache.maven.plugin.logging.Log;
 import org.apache.maven.project.MavenProject;
 import org.apache.maven.project.MavenProjectHelper;
 import org.codehaus.plexus.archiver.manager.ArchiverManager;
@@ -46,11 +45,11 @@ import org.codehaus.plexus.util.FileUtils;
 public class NarLayout21
     extends AbstractNarLayout
 {
-    private NarFileLayout fileLayout;
+    protected NarFileLayout fileLayout;
 
-    public NarLayout21( Log log )
+    public NarLayout21( AbstractNarMojo abstractNarMojo )
     {
-        super( log );
+        super( abstractNarMojo );
         this.fileLayout = new NarFileLayout10();
     }
 

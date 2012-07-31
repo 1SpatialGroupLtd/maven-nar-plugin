@@ -91,14 +91,6 @@ public abstract class Compiler
     private Set excludes = new HashSet();
 
     /**
-     * Compile with debug information.
-     * 
-     * @parameter expression="" default-value="false"
-     * @required
-     */
-    private boolean debug = false;
-
-    /**
      * Enables generation of exception handling code.
      * 
      * @parameter expression="" default-value="true"
@@ -415,7 +407,7 @@ public abstract class Compiler
         compiler.setName( compilerName );
 
         // debug, exceptions, rtti, multiThreaded
-        compiler.setDebug( debug );
+        compiler.setDebug( mojo.getDebug() );
         compiler.setExceptions( exceptions );
         compiler.setRtti( rtti );
         compiler.setMultithreaded( mojo.getOS().equals( "Windows" ) ? true : multiThreaded );

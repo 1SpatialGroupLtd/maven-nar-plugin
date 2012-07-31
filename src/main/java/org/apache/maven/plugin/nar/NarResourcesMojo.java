@@ -104,7 +104,7 @@ public class NarResourcesMojo
                 {
                     File aolFile = new File( aolDir, aol[i] );
                     copyResources( aolFile, aolFile.getName() );
-                    //We need to add library files that don not follow the nar naming convention to the modules properties file.
+                    //We need to add library files that do not follow the nar naming convention to the modules properties file.
                     addLibFilesToProperties( version, aol[i] );
                 }
             }
@@ -125,7 +125,7 @@ public class NarResourcesMojo
 		        getLayout().getLibDirectory( getTargetDirectory(), getMavenProject().getArtifactId(),
 		                                     version, aol, type );
 
-		    getLog().debug( "Adding version number to lib files in " + libDstDir);
+		    getLog().debug( "Adding lib files from " + libDstDir + " to properties");
 		    File[] libFiles = libDstDir.listFiles(); //getLibFilesInDirectory(libDstDir);
 		    for( int index = 0; index < libFiles.length; index++ )
 		    {

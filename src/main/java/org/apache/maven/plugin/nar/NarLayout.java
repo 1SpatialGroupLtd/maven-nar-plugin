@@ -88,4 +88,11 @@ public interface NarLayout
      */
     File getNarUnpackDirectory(File baseUnpackDirectory, File narFile);
 
+    /**
+     * Gets the configuration (debug or release).
+     * Introduced for NarLayout22.
+     *
+     * @return A string representation of the configuration being used.  Use an empty string for no configuration (before NarLayout22)
+     */
+    String getConfiguration();
 }

@@ -54,4 +54,9 @@ public class NarFileLayout10
     {
         return "bin" + File.separator + aol;
     }
+
+	public String getConfigString()
+	{
+		return "";
+	}
 }
