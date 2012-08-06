@@ -123,6 +123,13 @@ public class NarTestCompileMojo
             task.addConfiguredCompiler( cpp );
         }
 
+        // add C# compiler
+        CompilerDef cSharp = getCSharp().getCompiler( type, test.getName() );
+        if ( cSharp != null )
+        {
+            task.addConfiguredCompiler( cSharp );
+        }
+
         // add C compiler
         CompilerDef c = getC().getCompiler( type, test.getName() );
         if ( c != null )

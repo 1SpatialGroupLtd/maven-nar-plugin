@@ -40,6 +40,13 @@ public abstract class AbstractCompileMojo
 {
 
     /**
+     * C# Compiler
+     *
+     * @parameter expression=""
+     */
+    private CSharp cSharp;
+
+    /**
      * C++ Compiler
      * 
      * @parameter expression=""
@@ -171,6 +178,16 @@ public abstract class AbstractCompileMojo
         }
         cpp.setAbstractCompileMojo( this );
         return cpp;
+    }
+
+    protected final CSharp getCSharp()
+    {
+        if ( cSharp == null )
+        {
+            cSharp = new CSharp();
+        }
+        cSharp.setAbstractCompileMojo( this );
+        return cSharp;
     }
 
     protected final Fortran getFortran()

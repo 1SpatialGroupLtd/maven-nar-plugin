@@ -74,6 +74,7 @@ public class NarCompileMojo
         // check for source files
         int noOfSources = 0;
         noOfSources += getSourcesFor(getCpp()).size();
+        noOfSources += getSourcesFor(getCSharp()).size();
         noOfSources += getSourcesFor(getC()).size();
         noOfSources += getSourcesFor(getFortran()).size();
         if ( noOfSources > 0 )
@@ -165,6 +166,8 @@ public class NarCompileMojo
         task.setOutfile(outFile);
 
         // object directory
+        //TODO set obj directoy to output directory for c#
+        //TODO also add "/out:<module name>" as a configured compiler arg for c#
         File objDir = new File(getTargetDirectory(), "obj");
         objDir = new File(objDir, getAOL().toString());
         objDir.mkdirs();
@@ -182,10 +185,18 @@ public class NarCompileMojo
         // Darren Sargent Feb 11 2010: Use Compiler.MAIN for "type"...appears the wrong "type" variable was being used
         // since getCompiler() expects "main" or "test", whereas the "type" variable here is "executable", "shared" etc.
         // add C++ compiler
+        //TODO make getCpp etc... return null unless specified in pom?  Should that be unless suitable source found?
         CompilerDef cpp = getCpp().getCompiler( Compiler.MAIN, getOutput( getAOL() ) );
         if ( cpp != null )
         {
             task.addConfiguredCompiler( cpp );
+        }
+
+        // add C# compiler
+        CompilerDef cSharp = getCSharp().getCompiler( Compiler.MAIN, getOutput( getAOL() ) );
+        if ( cSharp != null )
+        {
+            task.addConfiguredCompiler( cSharp );
         }
 
         // add C compiler
@@ -384,5 +395,6 @@ public class NarCompileMojo
                             "MT.EXE failed with exit code: " + result);
             }
         }
+        //TODO copy dll and exe files from c# build here (alternately set different 'obj' directory when using c#).
     }
 }

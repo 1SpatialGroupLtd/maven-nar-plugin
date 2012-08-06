@@ -55,6 +55,12 @@ public class NarValidateMojo
                 throw new MojoExecutionException( "No includes defined for compiler " + cpp.getName() );
             }
         }
+        Compiler cSharp = getCSharp();
+        if ( cSharp.getName() != null )
+        {
+            noOfCompilers++;
+            // don't need includes
+        }
         Compiler c = getC();
         if ( c.getName() != null )
         {
