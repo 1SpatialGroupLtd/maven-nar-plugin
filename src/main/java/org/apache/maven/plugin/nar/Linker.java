@@ -508,4 +508,9 @@ public class Linker
             }
         }
     }
+
+    public List getOptions()
+    {
+        return options;
+    }
 }

@@ -27,6 +27,7 @@ import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.jar.JarFile;
 
 import org.apache.maven.artifact.Artifact;
@@ -71,27 +72,45 @@ public class NarManager
 		this.linkerName = NarUtil.getLinkerName(project, architecture, os, linker);
 	}
 
-	/**
+    /**
      * Returns dependencies which are dependent on NAR files (i.e. contain NarInfo)
-	 */
-	public final List/* <NarArtifact> */getNarDependencies(String scope)
+     */
+    public final List/* <NarArtifact> */getNarDependencies(String scope)
         throws MojoExecutionException
     {
-		List narDependencies = new LinkedList();
-        for ( Iterator i = getDependencies( scope ).iterator(); i.hasNext(); )
-        {
-			Artifact dependency = (Artifact) i.next();
-			log.debug("Examining artifact for NarInfo: " + dependency);
+        List dependencies = getDependencies( scope );
+        List narDependencies = filterOutNonNarDependencies(dependencies);
+        return narDependencies;
+    }
 
-			NarInfo narInfo = getNarInfo(dependency);
+    /**
+     * Returns direct (i.e. non transitive) dependencies which are dependent on NAR files (i.e. contain NarInfo)
+     */
+    public final List/* <NarArtifact> */getDirectNarDependencies(String scope)
+        throws MojoExecutionException
+    {
+        List dependencies = getDirectDependencies( scope );
+        List narDependencies = filterOutNonNarDependencies(dependencies);
+        return narDependencies;
+    }
+
+    private List filterOutNonNarDependencies(List dependencies)
+            throws MojoExecutionException {
+        List narDependencies = new LinkedList();
+        for ( Iterator i = dependencies.iterator(); i.hasNext(); )
+        {
+            Artifact dependency = (Artifact) i.next();
+            log.debug("Examining artifact for NarInfo: " + dependency);
+
+            NarInfo narInfo = getNarInfo(dependency);
             if ( narInfo != null )
             {
-				log.debug("    - added as NarDependency");
-				narDependencies.add(new NarArtifact(dependency, narInfo));
-			}
-		}
-		return narDependencies;
-	}
+                log.debug("    - added as NarDependency");
+                narDependencies.add(new NarArtifact(dependency, narInfo));
+            }
+        }
+        return narDependencies;
+    }
 
 	/**
      * Returns all NAR dependencies by type: noarch, static, dynamic, jni, plugin.
@@ -335,9 +354,21 @@ public class NarManager
 
     private List getDependencies( String scope )
     {
-        List dependencies = new ArrayList();
+        Set artifacts = project.getArtifacts();
+        List dependencies = filterDependenciesByScope(scope, artifacts);
+        return dependencies;
+	}
 
-        for ( Iterator i = project.getArtifacts().iterator(); i.hasNext(); )
+    private List getDirectDependencies( String scope )
+    {
+        Set artifacts = project.getDependencyArtifacts();
+        List dependencies = filterDependenciesByScope(scope, artifacts);
+        return dependencies;
+	}
+
+    private List filterDependenciesByScope(String scope, Set artifacts) {
+		List dependencies = new ArrayList();
+        for ( Iterator i = artifacts.iterator(); i.hasNext(); )
         {
             Artifact a = (Artifact) i.next();
             if ( a.getScope().equals( scope )
@@ -346,7 +377,6 @@ public class NarManager
                 dependencies.add(a);
             }
         }
-
         return dependencies;
 	}
 

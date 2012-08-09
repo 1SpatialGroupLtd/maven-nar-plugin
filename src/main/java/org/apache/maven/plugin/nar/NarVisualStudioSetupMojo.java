@@ -429,10 +429,11 @@ public class NarVisualStudioSetupMojo extends AbstractCompileMojo {
 					return name.endsWith(".lib");
 				}
 			});
-			for(int index = 0; index < libFiles.length; index++)
-			{
-				libraries.add(libFiles[index].getName());
-			}
+			if(libFiles != null)
+				for(int index = 0; index < libFiles.length; index++)
+				{
+					libraries.add(libFiles[index].getName());
+				}
 		}
 		return libraries;
 	}
