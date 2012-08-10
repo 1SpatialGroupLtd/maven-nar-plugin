@@ -384,7 +384,24 @@ public class NarNugetMojo extends AbstractCompileMojo
 		File[] filesToCopy = libDir.listFiles(filter);
 		if(filesToCopy != null)
 			for(int i = 0; i < filesToCopy.length; i++)
+			{
 				copyToDirectory(filesToCopy[i], dllDirectory);
+				stripVersionNumber(new File(dllDirectory, filesToCopy[i].getName()));
+			}
+	}
+
+	private void stripVersionNumber(File file) throws MojoExecutionException
+	{
+		String mavenVersion = getMavenProject().getVersion();
+		String currentName = file.getName();
+		if(!currentName.contains(mavenVersion))
+			return;
+		String versionlessName;
+		int indexOfVersion = currentName.indexOf(mavenVersion);
+		versionlessName = currentName.substring(0, indexOfVersion - 1) + currentName.substring(indexOfVersion + mavenVersion.length());
+		getLog().debug("Renaming " + currentName + " to " + versionlessName);
+		if(!file.renameTo(new File(file.getParent(), versionlessName)))
+			throw new MojoExecutionException("Could not rename file " + file);
 	}
 
 	private void copyToDirectory(File file, File destinationDir) throws IOException
