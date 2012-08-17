@@ -5,9 +5,12 @@ public interface NarVisualStudioSetupTags
 	//Solution template tags
 	public static final String TEST_PROJECT_PATH = "[#testProjectPath#]";
 	public static final String TEST_PROJECT_NAME = "[#testProjectName#]";
+	public static final String TEST_PROJECT_GUID = "[#testProjectGUID#]";
+	public static final String DEPENDENCY_PROJECT_PATH = "[#dependencyProjectPath#]";
+	public static final String DEPENDENCY_PROJECT_NAME = "[#dependencyProjectName#]";
+	public static final String DEPENDENCY_PROJECT_GUID = "[#dependencyProjectGUID#]";
 	public static final String MAIN_PROJECT_PATH = "[#mainProjectPath#]";
 	public static final String MAIN_PROJECT_NAME = "[#mainProjectName#]";
-	public static final String TEST_PROJECT_GUID = "[#testProjectGUID#]";
 	public static final String MAIN_PROJECT_GUID = "[#mainProjectGUID#]";
 	public static final String SOLUTION_GUID = "[#solutionGUID#]";
 

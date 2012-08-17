@@ -74,7 +74,6 @@ public class NarNugetMojo extends AbstractCompileMojo
 	private static final String NUGET_SPEC_COMMAND = "NuGet.exe spec";
 	private static final String NUGET_LOCATION = "NuGet";
 	private static final String NUSPEC_EXTENSION = ".nuspec";
-	private static final String WINMD_FLAG = "/WINMD";
 	private static final String CONTENT_LOCATION = "content";
 	private static final String LIB_LOCATION = "lib";
 	private static final String WINRT_FRAMEWORK = "WinRT45";
@@ -138,7 +137,7 @@ public class NarNugetMojo extends AbstractCompileMojo
 			throw new MojoExecutionException("Failed to package " + nupkgFile.getName());
 	}
 
-	private void addInstallScript() throws MojoExecutionException, IOException
+	private void addInstallScript() throws MojoExecutionException, IOException, MojoFailureException
 	{
 		getLog().info("Adding install script");
 		File toolsDir = new File(nugetDir, TOOLS_LOCATION);
@@ -151,7 +150,7 @@ public class NarNugetMojo extends AbstractCompileMojo
 	}
 
 	private void addContentToInstallScript(File installScriptOutput, InputStream installScriptResourceStream)
-			throws IOException {
+			throws IOException, MojoExecutionException, MojoFailureException {
 		BufferedReader scriptInput = null;
 		BufferedWriter scriptOutput = null;
 		try
@@ -176,7 +175,7 @@ public class NarNugetMojo extends AbstractCompileMojo
 		}
 	}
 
-	private String replacePlaceholders(String line)
+	private String replacePlaceholders(String line) throws MojoExecutionException, MojoFailureException
 	{
 		if(!line.contains(CONTENT_PLACEHOLDER))
 			return line;
@@ -384,24 +383,7 @@ public class NarNugetMojo extends AbstractCompileMojo
 		File[] filesToCopy = libDir.listFiles(filter);
 		if(filesToCopy != null)
 			for(int i = 0; i < filesToCopy.length; i++)
-			{
 				copyToDirectory(filesToCopy[i], dllDirectory);
-				stripVersionNumber(new File(dllDirectory, filesToCopy[i].getName()));
-			}
-	}
-
-	private void stripVersionNumber(File file) throws MojoExecutionException
-	{
-		String mavenVersion = getMavenProject().getVersion();
-		String currentName = file.getName();
-		if(!currentName.contains(mavenVersion))
-			return;
-		String versionlessName;
-		int indexOfVersion = currentName.indexOf(mavenVersion);
-		versionlessName = currentName.substring(0, indexOfVersion - 1) + currentName.substring(indexOfVersion + mavenVersion.length());
-		getLog().debug("Renaming " + currentName + " to " + versionlessName);
-		if(!file.renameTo(new File(file.getParent(), versionlessName)))
-			throw new MojoExecutionException("Could not rename file " + file);
 	}
 
 	private void copyToDirectory(File file, File destinationDir) throws IOException
@@ -412,7 +394,7 @@ public class NarNugetMojo extends AbstractCompileMojo
 
 	//WinRT dll (and winmd) files want to go under /lib/WinRT<version>
 	//other dlls want to go under /content
-	private void createDllDirectory() throws MojoExecutionException
+	private void createDllDirectory() throws MojoExecutionException, MojoFailureException
 	{
 		String path;
 		if(isWinRT())
@@ -424,15 +406,9 @@ public class NarNugetMojo extends AbstractCompileMojo
 		createDirectory(dllDirectory);
 	}
 
-	private boolean isWinRT()
+	private boolean isWinRT() throws MojoExecutionException, MojoFailureException
 	{
-		Linker linker = getLinker();
-		if(linker == null)
-			return false;
-		List options = linker.getOptions();
-		if(options == null)
-			return false;
-		return options.contains(WINMD_FLAG);
+		return getNarInfo().isTargetWinRT(getAOL());
 	}
 
 	private void createTemplateNuspecFile() throws IOException, InterruptedException, MojoExecutionException, SAXException, ParserConfigurationException

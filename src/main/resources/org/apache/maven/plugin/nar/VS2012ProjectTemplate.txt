@@ -68,7 +68,7 @@
     </Link>
     <PostBuildEvent>
       <Command>cd ..\..\
-mvn clean package</Command>
+mvn package</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -91,7 +91,7 @@ mvn clean package</Command>
     </Link>
     <PostBuildEvent>
       <Command>cd ..\..\
-mvn clean package</Command>
+mvn package</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>

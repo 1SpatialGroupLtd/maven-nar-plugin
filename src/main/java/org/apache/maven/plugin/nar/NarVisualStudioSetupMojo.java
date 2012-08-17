@@ -8,8 +8,8 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
-import java.util.regex.Pattern;
 
+import org.apache.maven.artifact.Artifact;
 import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.plugin.MojoFailureException;
 
@@ -26,480 +26,293 @@ import org.apache.maven.plugin.MojoFailureException;
  */
 public class NarVisualStudioSetupMojo extends AbstractCompileMojo {
 
-	/**
-	 * The directory the solution resides in
-	 */
-	private File solutionDir;
+    private static final String VS2012_TEST_PROJECT_TEMPLATE = "VS2012TestProjectTemplate.txt";
 
-	/**
-	 * The directory the main project resides in
-	 */
-	private File mainProjectDir;
+    private static final String VS2012_PROJECT_TEMPLATE = "VS2012ProjectTemplate.txt";
 
-	/**
-	 * The directory the test project resides in
-	 */
-	private File testProjectDir;
+    private static final String LIB_EXTENSION = ".lib";
 
-	private String solutionGUID;
+    private VS2012Project mainProject;
 
-	private String mainProjectGUID;
+    private VS2012Project testProject;
 
-	private String testProjectGUID;
+    private VS2012Project dependencyProject;
 
-	private String binding;
+    private ProjectInfo mainProjectInfo;
 
-	private Set includes;
+    private ProjectInfo testProjectInfo;
 
-	private Set libraryPaths;
+    private ProjectInfo dependencyProjectInfo;
 
-	private Set defines;
+    private Set emptySet = new HashSet();
 
-	private Set libraryFiles;
+    public final void narExecute() throws MojoFailureException,
+            MojoExecutionException
+    {
+        checkPermissions(getBasedir());
 
-	private Set headerFiles;
+        File solutionDirectory = getSolutionDirectory();
+        String moduleName = getMavenProject().getName();
+        mainProject = new VS2012Project(solutionDirectory, moduleName + "Project");
+        testProject = new VS2012Project(solutionDirectory, moduleName + "TestProject");
+        dependencyProject = new VS2012Project(solutionDirectory, moduleName + "DependencyProject");
 
-	private Set sourceFiles;
+        createSolution();
 
-	private List testDependencies;
+        initProjectInfos();
+        mainProject.createProjectFiles(mainProjectInfo);
+        testProject.createProjectFiles(testProjectInfo);
+        dependencyProject.createProjectFiles(dependencyProjectInfo);
+    }
 
-	private Set testHeaderFiles;
+    private void initProjectInfos() throws MojoExecutionException,
+            MojoFailureException
+    {
+        mainProjectInfo = buildProjectInfo(VS2012_PROJECT_TEMPLATE, getBinding(), getDefines(), getDependencies(), getUnpackDirectory(), getCpp().getIncludePaths("main"), getSourcesFor(getCpp()));
 
-	private Set testSourceFiles;
+        testProjectInfo = buildProjectInfo(VS2012_TEST_PROJECT_TEMPLATE, Library.EXECUTABLE, emptySet, getTestDependencies(), getTestUnpackDirectory(), getCpp().getIncludePaths("test"), getTestSourcesFor(getCpp()));;
 
-	private Set testLibraryPaths;
+        dependencyProjectInfo = new ProjectInfo(VS2012_TEST_PROJECT_TEMPLATE, Library.SHARED, emptySet, emptySet, emptySet, emptySet, getFilesByExtension(getDirectIncludes(), ".h"), emptySet);
+    }
 
-	private Set testLibraryFiles;
+    private ProjectInfo buildProjectInfo(String template, String binding, Set defines, List dependencies, File unpackDirectory, List headerLocations, List sourceFiles) throws MojoExecutionException, MojoFailureException
+    {
+        Set libraryPaths = getLibraryPaths(dependencies, unpackDirectory);
+        return new ProjectInfo(template,
+                binding,
+                defines,
+                getIncludePaths(dependencies, unpackDirectory),
+                libraryPaths,
+                getLibraryFilePaths(libraryPaths),
+                getHeaderFilePaths(headerLocations),
+                getSourceFilePaths(sourceFiles));
+    }
 
-	public NarVisualStudioSetupMojo()
-	{
-		generateGUIDS();
-	}
+    private List getDependencies() throws MojoExecutionException, MojoFailureException
+    {
+        List dependencies = getNarManager().getNarDependencies(Artifact.SCOPE_COMPILE);
+        reportOnDependencies("Found dependencies:", dependencies);
+        return dependencies;
+    }
 
-	public final void narExecute() throws MojoFailureException,
-			MojoExecutionException
-	{
-		checkPermissions(getBasedir());
-		createSolutionFiolders();
+    private List getTestDependencies() throws MojoExecutionException, MojoFailureException
+    {
+        //Use the test scope as this will include both test and compile dependencies
+        List dependencies = getNarManager().getNarDependencies(Artifact.SCOPE_TEST);
+        reportOnDependencies("Found test dependencies:", dependencies);
+        return dependencies;
+    }
 
-		createSolution();
+    private void reportOnDependencies(String message, List dependencies)
+    {
+        getLog().debug(message);
+        for(Iterator i = dependencies.iterator(); i.hasNext();)
+        {
+            getLog().debug(((NarArtifact) i.next()).getArtifactId());
+        }
+    }
 
-		createMainProjectFile();
-		createMainFiltersFile();
-		createMainUserFile();
+    private String getBinding() throws MojoExecutionException, MojoFailureException
+    {
+        String binding = getNarInfo().getBinding(getAOL(), Library.STATIC);
+        getLog().debug("Artifact binding: " + binding);
 
-		createTestProjectFile();
-		createTestFiltersFile();
-		createTestUserFile();
-	}
+        return binding;
+    }
 
-	private void createMainUserFile() throws MojoExecutionException, MojoFailureException
-	{
-		File user = new File(getProjectDirectory(), getProjectName() + ".vcxproj.user");
-		VisualStudioTemplateModifier modifier =
-			new VisualStudioUsersTemplateModifier("VS2012UserTemplate.txt", user,
-					getLibraryPaths());
-		modifier.createPopulatedOutput();
-	}
+    private Set getIncludePaths(List dependencies, File unpackDirectory) throws MojoExecutionException, MojoFailureException
+    {
+        Set includes = getIncludesFromDependencies(dependencies, unpackDirectory);
+        //Add our own include locations
+        includes.add(getBasedir() + "\\src\\main\\include");
+        reportOnStringSet("Found include locations:", includes);
+        return includes;
+    }
 
-	private void createTestUserFile() throws MojoExecutionException, MojoFailureException
-	{
-		File user = new File(getTestProjectDirectory(), getTestProjectName() + ".vcxproj.user");
-		VisualStudioTemplateModifier modifier =
-			new VisualStudioUsersTemplateModifier("VS2012UserTemplate.txt", user,
-					getTestLibraryPaths());
-		modifier.createPopulatedOutput();
-	}
+    private Set getDirectIncludes() throws MojoExecutionException, MojoFailureException
+    {
+        Set absoluteIncludes = getModuleIncludes();
+        absoluteIncludes.addAll(getDirectDependencyIncludes());
+        reportOnStringSet("Found direct include locations:", absoluteIncludes);
 
-	private void createMainFiltersFile() throws MojoExecutionException, MojoFailureException
-	{
-		File filters = new File(getProjectDirectory(), getProjectName() + ".vcxproj.filters");
-		VisualStudioTemplateModifier modifier =
-			new VisualStudioFiltersTemplateModifier("VS2012FiltersTemplate.txt", filters,
-					getHeaderFiles(), getSourceFiles());
-		modifier.createPopulatedOutput();
-	}
+        return absoluteIncludes;
+    }
 
-	private void createTestFiltersFile() throws MojoExecutionException, MojoFailureException
-	{
-		File filters = new File(getTestProjectDirectory(), getTestProjectName() + ".vcxproj.filters");
-		VisualStudioTemplateModifier modifier =
-			new VisualStudioFiltersTemplateModifier("VS2012FiltersTemplate.txt", filters,
-					getTestHeaderFiles(), getTestSourceFiles());
-		modifier.createPopulatedOutput();
-	}
+    private Set getModuleIncludes()
+    {
+        Set absoluteIncludes = new HashSet();
+        //we only care about the c++ includes
+        //Do we want test includes here as well?
+        absoluteIncludes.addAll(getCpp().getIncludePaths("main"));
+        return absoluteIncludes;
+    }
 
-	private List getTestDependencies() throws MojoExecutionException, MojoFailureException
-	{
-		if(testDependencies == null)
-		{
-			//Use the test scope as this will include both test and compile dependencies
-			testDependencies = getNarManager().getNarDependencies("test");
-
-			getLog().debug("Found test dependencies:");
-			for(Iterator i = testDependencies.iterator(); i.hasNext();)
-			{
-				getLog().debug(((NarArtifact) i.next()).getArtifactId());
-			}
-		}
-		return testDependencies;
-	}
-
-	private String getBinding() throws MojoExecutionException, MojoFailureException
-	{
-		if(binding == null)
-		{
-			binding = getNarInfo().getBinding(getAOL(), Library.STATIC);
-			getLog().debug("Artifact binding: " + binding);
-		}
-		return binding;
-	}
-
-	private Set getIncludes() throws MojoExecutionException, MojoFailureException
-	{
-		if(includes == null)
-		{
-			includes = new HashSet();
-			//we only care about the c++ includes
-			//Do we want test includes here as well?
-			includes.addAll(getCpp().getIncludePaths("main"));
-			includes.addAll(getDependencyIncludes());
-			includes = getRelativePaths(getProjectDirectory(), includes);
-			reportOnStringSet("Found include locations:", includes);
-		}
-		return includes;
-	}
-
-	private Set getDependencyIncludes() throws MojoFailureException,
-			MojoExecutionException
-	{
-		Set dependencyIncludes = new HashSet();
-		for(Iterator i = getTestDependencies().iterator(); i.hasNext();)
+    private Set getIncludesFromDependencies(List dependencies, File unpackDirectory)
+            throws MojoExecutionException, MojoFailureException
+    {
+        Set dependencyIncludes = new HashSet();
+        for(Iterator i = dependencies.iterator(); i.hasNext();)
         {
             NarArtifact narDependency = (NarArtifact) i.next();
             String binding = narDependency.getNarInfo().getBinding(getAOL(), Library.STATIC);
             if (!binding.equals(Library.JNI))
             {
                 File include =
-                    getLayout().getIncludeDirectory(getTestUnpackDirectory(), narDependency.getArtifactId(),
+                    getLayout().getIncludeDirectory(unpackDirectory, narDependency.getArtifactId(),
                                                      narDependency.getVersion());
                 dependencyIncludes.add(include.getPath());
             }
         }
-		return dependencyIncludes;
-	}
+        return dependencyIncludes;
+    }
 
-	private Set getDefines()
-	{
-		if(defines == null)
-		{
-			defines = new HashSet();
-			defines.addAll(getCpp().getDefines());
-			reportOnStringSet("Found defines:", defines);
-		}
-		return defines;
-	}
+    private Set getDirectDependencyIncludes() throws MojoExecutionException, MojoFailureException
+    {
+        List dependencies = getNarManager().getDirectNarDependencies(Artifact.SCOPE_COMPILE);
+        return getIncludesFromDependencies(dependencies, getUnpackDirectory());
+    }
 
-	private Set getLibraryPaths() throws MojoExecutionException, MojoFailureException
-	{
-		if(libraryPaths == null)
-		{
-			libraryPaths = new HashSet();
-			//Use the test scope as this will include both test and compile dependencies
-			for(Iterator i = getTestDependencies().iterator(); i.hasNext();)
-			{
-				NarArtifact narDependency = (NarArtifact) i.next();
-				String binding = narDependency.getNarInfo().getBinding(getAOL(), Library.STATIC);
-				if(!binding.equals(Library.JNI ))
-				{
-					File libraryPath =
-						getLayout().getLibDirectory(getTestUnpackDirectory(), narDependency.getArtifactId(),
-                                                     narDependency.getVersion(), getAOL().toString(), binding);
-					libraryPaths.add(libraryPath.getPath());
-				}
-			}
-			libraryPaths = getRelativePaths(getProjectDirectory(), libraryPaths);
-			reportOnStringSet("Found library locations:", libraryPaths);
-		}
-		return libraryPaths;
-	}
+    private Set getDefines()
+    {
+        Set defines = new HashSet();
+        defines.addAll(getCpp().getDefines());
+        reportOnStringSet("Found defines:", defines);
 
-	private Set getTestLibraryPaths() throws MojoExecutionException, MojoFailureException
-	{
-		if(testLibraryPaths == null)
-		{
-			testLibraryPaths = new HashSet();
-			//Do we want to exclude any other bindings?
-			if(!getBinding().equals(Library.EXECUTABLE))
-			{
-				testLibraryPaths.addAll(getLibraryPaths());
-				File libDir = getLayout().getLibDirectory(getTargetDirectory(), getMavenProject().getArtifactId(),
-						getMavenProject().getVersion(), getAOL().toString(), getBinding());
-				testLibraryPaths.add(getRelativePath(getTestProjectDirectory(), libDir.getPath()));
-			}
-			reportOnStringSet("Found test library locations:", testLibraryPaths);
-		}
-		return testLibraryPaths;
-	}
+        return defines;
+    }
 
-	private Set getLibraryFiles() throws MojoExecutionException, MojoFailureException
-	{
-		if(libraryFiles == null)
-		{
-			libraryFiles = new HashSet();
-			libraryFiles.addAll(getLibraries(getLibraryPaths(), getProjectDirectory()));
-			reportOnStringSet("Found libraries:", libraryFiles);
-		}
-		return libraryFiles;
-	}
-
-	private Set getTestLibraryFiles() throws MojoExecutionException, MojoFailureException
-	{
-		if(testLibraryFiles == null)
-		{
-			testLibraryFiles = new HashSet();
-			testLibraryFiles.addAll(getLibraries(getTestLibraryPaths(), getTestProjectDirectory()));
-			reportOnStringSet("Found test libraries:", testLibraryFiles);
-		}
-		return testLibraryFiles;
-	}
-
-	private void reportOnStringSet(String text, Collection data) {
-		getLog().debug(text);
-		for ( Iterator i = data.iterator(); i.hasNext(); )
-		{
-            getLog().debug((String) i.next());
-		}
-	}
-
-	private Set getHeaderFiles() throws MojoExecutionException, MojoFailureException
-	{
-		if(headerFiles == null)
-		{
-			headerFiles = getHeaderFilesFromLocations(getProjectDirectory(), getCpp().getIncludePaths("main"));
-			reportOnStringSet("Found header files:", headerFiles);
-		}
-		return headerFiles;
-	}
-
-	private Set getHeaderFilesFromLocations(File baseDir, List includePaths) throws MojoExecutionException
-	{
-		Set absoluteHeaderFiles = new HashSet();
-		for(Iterator it = includePaths.iterator(); it.hasNext();)
-		{
-			File[] includeFiles = new File((String)it.next()).listFiles();
-			for(int i = 0; i < includeFiles.length; i++)
-				absoluteHeaderFiles.add(includeFiles[i].getPath());
-		}
-		return getRelativePaths(baseDir, absoluteHeaderFiles);
-	}
-
-	private Set getSourceFiles() throws MojoExecutionException, MojoFailureException
-	{
-		if(sourceFiles == null)
-		{
-			Set absoluteSourceFiles = new HashSet(getSourcesFor(getCpp()));
-			sourceFiles = getRelativePathsFromFiles(getProjectDirectory(), absoluteSourceFiles);
-			reportOnStringSet("Found source files:", sourceFiles);
-		}
-		return sourceFiles;
-	}
-
-	private Set getTestHeaderFiles() throws MojoExecutionException, MojoFailureException
-	{
-		if(testHeaderFiles == null)
-		{
-			testHeaderFiles = getHeaderFilesFromLocations(getTestProjectDirectory(), getCpp().getIncludePaths("test"));
-			reportOnStringSet("Found test header files:", testHeaderFiles);
-		}
-		return testHeaderFiles;
-	}
-
-	private Set getTestSourceFiles() throws MojoExecutionException, MojoFailureException
-	{
-		if(testSourceFiles == null)
-		{
-			Set absoluteTestSourceFiles = new HashSet(getTestSourcesFor(getCpp()));
-			testSourceFiles = getRelativePathsFromFiles(getTestProjectDirectory(), absoluteTestSourceFiles);
-			reportOnStringSet("Found test source files:", testSourceFiles);
-		}
-		return testSourceFiles;
-	}
-
-	private void generateGUIDS()
-	{
-		solutionGUID = UUID.randomUUID().toString();
-		mainProjectGUID = UUID.randomUUID().toString();
-		testProjectGUID = UUID.randomUUID().toString();
-	}
-
-	private void createMainProjectFile() throws MojoExecutionException, MojoFailureException
-	{
-		File mainProject = new File(getProjectDirectory(), getProjectName() + ".vcxproj");
-		VisualStudioTemplateModifier modifier =
-			new VisualStudioProjectTemplateModifier("VS2012ProjectTemplate.txt", mainProject,
-					mainProjectGUID, getProjectName(), getBinding(), getIncludes(), getLibraryPaths(), getDefines(),
-					getLibraryFiles(), getHeaderFiles(), getSourceFiles());
-		modifier.createPopulatedOutput();
-	}
-
-	private void createTestProjectFile() throws MojoExecutionException, MojoFailureException
-	{
-		File testProject = new File(getTestProjectDirectory(), getTestProjectName() + ".vcxproj");
-		VisualStudioTemplateModifier modifier =
-			new VisualStudioProjectTemplateModifier("VS2012TestProjectTemplate.txt", testProject,
-					testProjectGUID, getTestProjectName(), Library.EXECUTABLE, getIncludes(), getTestLibraryPaths(), new HashSet(),
-					getTestLibraryFiles(), getTestHeaderFiles(), getTestSourceFiles());
-		modifier.createPopulatedOutput();
-	}
-
-	private void createSolution() throws MojoExecutionException
-	{
-		File solution = new File(getSolutionDirectory(), getMavenProject().getName() + "Solution.sln");
-		VisualStudioTemplateModifier modifier =
-			new VisualStudioSolutionTemplateModifier("VS2012SolutionTemplate.txt", solution,
-					solutionGUID, getProjectName(), getProjectDirectory().getName(), mainProjectGUID,
-					getTestProjectName(), getTestProjectDirectory().getName(), testProjectGUID);
-		modifier.createPopulatedOutput();
-	}
-
-	private String getProjectName()
-	{
-		return getMavenProject().getName() + "Project";
-	}
-
-	private String getTestProjectName()
-	{
-		return getMavenProject().getName() + "TestProject";
-	}
-
-	private void createSolutionFiolders()
-	{
-		getSolutionDirectory().mkdir();
-		getProjectDirectory().mkdir();
-		getTestProjectDirectory().mkdir();
-	}
-
-	private File getSolutionDirectory()
-	{
-		if(solutionDir == null)
-			solutionDir = new File(getBasedir(), getMavenProject().getName() + "Solution");
-		return solutionDir;
-	}
-
-	private File getProjectDirectory()
-	{
-		if(mainProjectDir == null)
-			mainProjectDir = new File(getSolutionDirectory(), getProjectName());
-		return mainProjectDir;
-	}
-
-	private File getTestProjectDirectory()
-	{
-		if(testProjectDir == null)
-			testProjectDir = new File(getSolutionDirectory(), getTestProjectName());
-		return testProjectDir;
-	}
-
-	private void checkPermissions(File directory)
-		throws MojoExecutionException
-	{
-		if(!directory.canRead())
-		{
-			getLog().debug("Cannot read " + directory);
-			throw new MojoExecutionException("Can't read file: " + directory);
-		}
-		if(!directory.canWrite())
-		{
-			getLog().debug("Cannot write to " + directory);
-			throw new MojoExecutionException("Can't write to file: " + directory.getPath());
-		}
-	}
-
-	private Collection getLibraries(Set libraryPaths, File baseDir)
-	{
-		Set libraries = new HashSet();
-		for(Iterator i = libraryPaths.iterator(); i.hasNext();)
-		{
-			File libDir = new File(baseDir, (String) i.next());
-			File[] libFiles =  libDir.listFiles(new FilenameFilter()
-			{
-				public boolean accept(File dir, String name)
-				{
-					return name.endsWith(".lib");
-				}
-			});
-			if(libFiles != null)
-				for(int index = 0; index < libFiles.length; index++)
-				{
-					libraries.add(libFiles[index].getName());
-				}
-		}
-		return libraries;
-	}
-
-	//Takes a set of String file paths
-	private Set getRelativePaths(File sourceDir, Set targetPaths) throws MojoExecutionException
-	{
-		Set relativePaths  = new HashSet();
-		for( Iterator it = targetPaths.iterator(); it.hasNext(); )
-		{
-			relativePaths.add( getRelativePath( sourceDir, ((String) it.next()) ) );
-		}
-		return relativePaths;
-	}
-
-	//Takes a set of Files
-	private Set getRelativePathsFromFiles(File sourceDir, Set targetFiles) throws MojoExecutionException
-	{
-		Set relativePaths  = new HashSet();
-		for( Iterator it = targetFiles.iterator(); it.hasNext(); )
-		{
-			relativePaths.add( getRelativePath( sourceDir, ((File) it.next()).getPath() ) );
-		}
-		return relativePaths;
-	}
-
-	private String getRelativePath(File sourceDir, String targetPath) throws MojoExecutionException
-	{
-        String pathSeparator = "\\";
-
-		String[] base = sourceDir.getPath().split(Pattern.quote(pathSeparator));
-        String[] target = targetPath.split(Pattern.quote(pathSeparator));
-
-        // First get all the common elements. Store them as a string,
-        // and also count how many of them there are.
-        StringBuffer common = new StringBuffer();
-
-        int commonIndex = 0;
-        while (commonIndex < target.length && commonIndex < base.length
-                && target[commonIndex].equals(base[commonIndex]))
+    private Set getLibraryPaths(List dependencies, File unpackDirectory) throws MojoFailureException,
+            MojoExecutionException
+    {
+        Set libraryPaths = new HashSet();
+        for(Iterator i = dependencies.iterator(); i.hasNext();)
         {
-            common.append(target[commonIndex] + pathSeparator);
-            commonIndex++;
-        }
-
-        if (commonIndex == 0)
-        {
-            // No single common path element. This most
-            // likely indicates differing drive letters, like C: and D:.
-            // These paths cannot be relativised.
-            throw new MojoExecutionException("No common path element found for '" + targetPath + "' and '" + sourceDir
-                    + "'");
-        }
-
-        StringBuffer relative = new StringBuffer();
-
-        if (base.length != commonIndex)
-        {
-            int numDirsUp = base.length - commonIndex;
-
-            for (int i = 0; i < numDirsUp; i++)
+            NarArtifact narDependency = (NarArtifact) i.next();
+            String binding = narDependency.getNarInfo().getBinding(getAOL(), Library.STATIC);
+            if(!binding.equals(Library.JNI ))
             {
-                relative.append(".." + pathSeparator);
+                File libraryPath =
+                    getLayout().getLibDirectory(unpackDirectory, narDependency.getArtifactId(),
+                            narDependency.getVersion(), getAOL().toString(), binding);
+                libraryPaths.add(libraryPath.getPath());
             }
         }
-        relative.append(targetPath.substring(common.length()));
-        return relative.toString();
-	}
+        File libDir = getLayout().getLibDirectory(getTargetDirectory(), getMavenProject().getArtifactId(),
+                getMavenProject().getVersion(), getAOL().toString(), getBinding());
+        //Add out own output directory
+        libraryPaths.add(libDir.getPath());
+        reportOnStringSet("Found library paths:", libraryPaths);
+        return libraryPaths;
+    }
+
+    private Set getLibraryFilePaths(Set libraryPaths) throws MojoExecutionException, MojoFailureException
+    {
+        Set libraryFiles = new HashSet();
+        libraryFiles.addAll(getFilesByExtension(libraryPaths, LIB_EXTENSION));
+        reportOnStringSet("Found libraries:", libraryFiles);
+
+        return libraryFiles;
+    }
+
+    private void reportOnStringSet(String text, Collection data) {
+        getLog().debug(text);
+        for ( Iterator i = data.iterator(); i.hasNext(); )
+        {
+            getLog().debug((String) i.next());
+        }
+    }
+
+    private Set getHeaderFilePaths(List includePaths) throws MojoExecutionException
+    {
+        Set headerFiles = new HashSet();
+        for(Iterator it = includePaths.iterator(); it.hasNext();)
+        {
+            File[] includeFiles = new File((String)it.next()).listFiles();
+            for(int i = 0; i < includeFiles.length; i++)
+                headerFiles.add(includeFiles[i].getPath());
+        }
+        reportOnStringSet("Found header files:", headerFiles);
+        return headerFiles;
+    }
+
+    private Set getSourceFilePaths(List sourceFiles) throws MojoExecutionException, MojoFailureException
+    {
+        Set sourceFilePaths = getFilePaths(sourceFiles);
+        reportOnStringSet("Found source files:", sourceFilePaths);
+        return sourceFilePaths;
+    }
+
+    private Set getFilePaths(List files)
+    {
+        Set filePaths = new HashSet();
+        for(Iterator i = files.iterator(); i.hasNext();)
+            filePaths.add(((File)i.next()).getPath());
+        return filePaths;
+    }
+
+    private String getGUID()
+    {
+        return UUID.randomUUID().toString();
+    }
+
+    private void createSolution() throws MojoExecutionException
+    {
+        File solution = new File(getSolutionDirectory(), getMavenProject().getName() + "Solution.sln");
+        VisualStudioTemplateModifier modifier =
+            new VisualStudioSolutionTemplateModifier("VS2012SolutionTemplate.txt",
+                    solution, getGUID(), mainProject, testProject, dependencyProject);
+        modifier.createPopulatedOutput();
+    }
+
+    private File getSolutionDirectory()
+    {
+        return new File(getBasedir(), getMavenProject().getName() + "Solution");
+    }
+
+    private void checkPermissions(File directory)
+        throws MojoExecutionException
+    {
+        if(!directory.canRead())
+        {
+            getLog().debug("Cannot read " + directory);
+            throw new MojoExecutionException("Can't read file: " + directory);
+        }
+        if(!directory.canWrite())
+        {
+            getLog().debug("Cannot write to " + directory);
+            throw new MojoExecutionException("Can't write to file: " + directory.getPath());
+        }
+    }
+
+    private Set getFilesByExtension(Set locations, String extension)
+    {
+        Set libraries = new HashSet();
+        for(Iterator i = locations.iterator(); i.hasNext();)
+        {
+            File directory = new File((String) i.next());
+            File[] files =  directory.listFiles(new ExtensionFilter(extension));
+
+            if(files != null)
+                for(int index = 0; index < files.length; index++)
+                {
+                    libraries.add(files[index].getPath());
+                }
+        }
+        return libraries;
+    }
+
+    private class ExtensionFilter implements FilenameFilter
+    {
+        private String extension;
+
+        ExtensionFilter(String extension)
+        {
+            this.extension = extension;
+        }
+
+        public boolean accept(File dir, String name)
+        {
+            return name.endsWith(extension);
+        }
+    }
 }

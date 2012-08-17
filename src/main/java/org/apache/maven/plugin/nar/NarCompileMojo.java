@@ -20,6 +20,7 @@ package org.apache.maven.plugin.nar;
  */
 
 import java.io.File;
+import java.io.FilenameFilter;
 import java.io.IOException;
 import java.util.Iterator;
 import java.util.LinkedList;
@@ -36,6 +37,7 @@ import net.sf.antcontrib.cpptasks.types.LibrarySet;
 import net.sf.antcontrib.cpptasks.types.LinkerArgument;
 import net.sf.antcontrib.cpptasks.types.SystemLibrarySet;
 
+import org.apache.maven.artifact.Artifact;
 import org.apache.maven.execution.MavenSession;
 import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.plugin.MojoFailureException;
@@ -44,7 +46,7 @@ import org.apache.tools.ant.Project;
 
 /**
  * Compiles native source files.
- * 
+ *
  * @goal nar-compile
  * @phase compile
  * @requiresSession
@@ -57,7 +59,7 @@ public class NarCompileMojo
 {
     /**
      * The current build session instance.
-     * 
+     *
      * @parameter expression="${session}"
      * @required
      * @readonly
@@ -105,7 +107,7 @@ public class NarCompileMojo
     }
 
     private void createLibrary(Project antProject, Library library)
-        throws MojoExecutionException, MojoFailureException 
+        throws MojoExecutionException, MojoFailureException
     {
         getLog().debug( "Creating Library " + library );
         // configure task
@@ -178,6 +180,39 @@ public class NarCompileMojo
         RuntimeType runtimeType = new RuntimeType();
         runtimeType.setValue(getRuntime(getAOL()));
         task.setRuntime(runtimeType);
+
+        Compiler cppCompiler = getCpp();
+        getLog().info("Looking for WinRT dependencies");
+        for (Iterator i = getNarManager().getNarDependencies(Artifact.SCOPE_COMPILE).iterator(); i.hasNext();)
+        {
+            NarArtifact dependency = (NarArtifact)i.next();
+            if(dependency.getNarInfo().isTargetWinRT(getAOL()))
+            {
+                getLog().debug("Found WinRT dependnency " + dependency.getArtifactId());
+                String binding = dependency.getNarInfo().getBinding(getAOL(), "static");
+                if(!binding.equals("shared"))
+                {
+                    getLog().debug("Binding is not shared, ignoring");
+                    continue;
+                }
+                File libDir = getLayout().getLibDirectory(getUnpackDirectory(),
+                        dependency.getArtifactId(), dependency.getVersion(),
+                        getAOL().toString(), binding);
+                File[] winmdFiles = libDir.listFiles(new FilenameFilter()
+                {
+                    public boolean accept(File dir, String name)
+                    {
+                        return name.endsWith(".winmd");
+                    }
+                });
+                for(int index = 0; index < winmdFiles.length; index++)
+                {
+                    String option = "/FU"+winmdFiles[index].getPath();
+                    getLog().debug("Added compile option " + option);
+                    cppCompiler.addOption(option);
+                }
+            }
+        }
 
         // Darren Sargent Feb 11 2010: Use Compiler.MAIN for "type"...appears the wrong "type" variable was being used
         // since getCompiler() expects "main" or "test", whereas the "type" variable here is "executable", "shared" etc.
@@ -266,7 +301,7 @@ public class NarCompileMojo
                         NarArtifact dep = (NarArtifact) j.next();
                         String depName = dep.getGroupId() + ":" + dep.getArtifactId();
 
-                        if (depName.equals(depToOrderName)) 
+                        if (depName.equals(depToOrderName))
                         {
                             tmp.add(dep);
                             j.remove();

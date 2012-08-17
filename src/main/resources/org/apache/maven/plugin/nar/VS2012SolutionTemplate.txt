@@ -5,6 +5,8 @@ Project("{[#solutionGUID#]}") = "[#mainProjectName#]", "[#mainProjectPath#]", "{
 EndProject
 Project("{[#solutionGUID#]}") = "[#testProjectName#]", "[#testProjectPath#]", "{[#testProjectGUID#]}"
 EndProject
+Project("{[#solutionGUID#]}") = "[#dependencyProjectName#]", "[#dependencyProjectPath#]", "{[#dependencyProjectGUID#]}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Win32 = Debug|Win32

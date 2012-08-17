@@ -41,42 +41,42 @@ public abstract class AbstractCompileMojo
 
     /**
      * C++ Compiler
-     * 
+     *
      * @parameter expression=""
      */
     private Cpp cpp;
 
     /**
      * C Compiler
-     * 
+     *
      * @parameter expression=""
      */
     private C c;
 
     /**
      * Fortran Compiler
-     * 
+     *
      * @parameter expression=""
      */
     private Fortran fortran;
 
     /**
      * Maximum number of Cores/CPU's to use. 0 means unlimited.
-     * 
+     *
      * @parameter expression=""
      */
     private int maxCores = 0;
 
     /**
      * Name of the output
-     * 
+     *
      * @parameter expression="${project.artifactId}-${project.version}"
      */
     private String output;
 
     /**
      * Fail on compilation/linking error.
-     * 
+     *
      * @parameter expression="" default-value="true"
      * @required
      */
@@ -84,7 +84,7 @@ public abstract class AbstractCompileMojo
 
     /**
      * Sets the type of runtime library, possible values "dynamic", "static".
-     * 
+     *
      * @parameter expression="" default-value="dynamic"
      * @required
      */
@@ -93,7 +93,7 @@ public abstract class AbstractCompileMojo
     /**
      * Set use of libtool. If set to true, the "libtool " will be prepended to the command line for compatible
      * processors.
-     * 
+     *
      * @parameter expression="" default-value="false"
      * @required
      */
@@ -101,7 +101,7 @@ public abstract class AbstractCompileMojo
 
     /**
      * The home of the Java system. Defaults to a derived value from ${java.home} which is OS specific.
-     * 
+     *
      * @parameter expression=""
      * @readonly
      */
@@ -109,28 +109,28 @@ public abstract class AbstractCompileMojo
 
     /**
      * List of libraries to create
-     * 
+     *
      * @parameter expression=""
      */
     private List libraries;
 
     /**
      * List of tests to create
-     * 
+     *
      * @parameter expression=""
      */
     private List tests;
 
     /**
      * Javah info
-     * 
+     *
      * @parameter expression=""
      */
     private Javah javah;
 
     /**
      * Java info for includes and linking
-     * 
+     *
      * @parameter expression=""
      */
     private Java java;
@@ -184,37 +184,37 @@ public abstract class AbstractCompileMojo
     }
 
     protected final int getMaxCores( AOL aol )
-        throws MojoExecutionException
+        throws MojoExecutionException, MojoFailureException
     {
         return getNarInfo().getProperty( aol, "maxCores", maxCores );
     }
 
     protected final boolean useLibtool( AOL aol )
-        throws MojoExecutionException
+        throws MojoExecutionException, MojoFailureException
     {
         return getNarInfo().getProperty( aol, "libtool", libtool );
     }
 
     protected final boolean failOnError( AOL aol )
-        throws MojoExecutionException
+        throws MojoExecutionException, MojoFailureException
     {
         return getNarInfo().getProperty( aol, "failOnError", failOnError );
     }
 
     protected final String getRuntime( AOL aol )
-        throws MojoExecutionException
+        throws MojoExecutionException, MojoFailureException
     {
         return getNarInfo().getProperty( aol, "runtime", runtime );
     }
 
     protected final String getOutput( AOL aol )
-        throws MojoExecutionException
+        throws MojoExecutionException, MojoFailureException
     {
         return getNarInfo().getProperty( aol, "output", output );
     }
 
     protected final File getJavaHome( AOL aol )
-        throws MojoExecutionException
+        throws MojoExecutionException, MojoFailureException
     {
         // FIXME should be easier by specifying default...
         return getNarInfo().getProperty( aol, "javaHome", NarUtil.getJavaHome( javaHome, getOS() ) );
@@ -275,15 +275,16 @@ public abstract class AbstractCompileMojo
      * then in src/main/resources/META-INF/nar/<groupId>/<artifactId>
      * @return the loaded NarInfo
      * @throws MojoExecutionException
+     * @throws MojoFailureException
      */
     protected final NarInfo getNarInfo()
-        throws MojoExecutionException
+        throws MojoExecutionException, MojoFailureException
     {
         if ( narInfo == null )
         {
-        	String groupId = getMavenProject().getGroupId();
-        	String artifactId = getMavenProject().getArtifactId();
-        	
+            String groupId = getMavenProject().getGroupId();
+            String artifactId = getMavenProject().getArtifactId();
+
             File propertiesDir = getTargetPropertiesDir();
             File propertiesFile = getPropertiesFile( propertiesDir );
             if( !propertiesFile.exists() )
@@ -292,19 +293,36 @@ public abstract class AbstractCompileMojo
                 propertiesFile = getPropertiesFile( propertiesDir );
             }
 
-            narInfo = new NarInfo( 
+            narInfo = new NarInfo(
                 groupId, artifactId,
-                getMavenProject().getVersion(), 
+                getMavenProject().getVersion(),
                 getLog(),
                 propertiesFile );
+
+            narInfo.addLibrary(getAOL(), output);
+
+            narInfo.setTargetWinRT(getAOL(), isTargetWinRT());
         }
         return narInfo;
     }
 
-	private File getPropertiesFile(File propertiesDir) {
-		File propertiesFile = new File( propertiesDir, NarInfo.NAR_PROPERTIES );
-		return propertiesFile;
-	}
+    private boolean isTargetWinRT()
+    {
+        //We really want a better way of doing this.
+        //add a parameter?  we could set WinRT specific options automatically?
+        Linker linker = getLinker();
+        if(linker == null)
+            return false;
+        List options = linker.getOptions();
+        if(options == null)
+            return false;
+        return options.contains(WINMD_FLAG);
+    }
+
+    private File getPropertiesFile(File propertiesDir) {
+        File propertiesFile = new File( propertiesDir, NarInfo.NAR_PROPERTIES );
+        return propertiesFile;
+    }
 
     /**
      * Saves nar info to file a s a properties file (nar.properties)
@@ -331,46 +349,46 @@ public abstract class AbstractCompileMojo
         }
     }
 
-	private File getTargetPropertiesDir()
-	{
-		File propertiesDir =
-		    new File( getOutputDirectory(), "classes/META-INF/nar/" + getMavenProject().getGroupId() + "/"
-		        + getMavenProject().getArtifactId() );
-		return propertiesDir;
-	}
+    private File getTargetPropertiesDir()
+    {
+        File propertiesDir =
+            new File( getOutputDirectory(), "classes/META-INF/nar/" + getMavenProject().getGroupId() + "/"
+                + getMavenProject().getArtifactId() );
+        return propertiesDir;
+    }
 
-	protected List getSourcesFor(Compiler compiler) throws MojoFailureException,
-			MojoExecutionException
-	{
-		List srcDirs = compiler.getSourceDirectories();
-		return getSourcesFromSourceDirectories(compiler, srcDirs);
-	}
+    protected List getSourcesFor(Compiler compiler) throws MojoFailureException,
+            MojoExecutionException
+    {
+        List srcDirs = compiler.getSourceDirectories();
+        return getSourcesFromSourceDirectories(compiler, srcDirs);
+    }
 
-	private List getSourcesFromSourceDirectories(Compiler compiler, List srcDirs)
-			throws MojoFailureException, MojoExecutionException {
-		try
-		{
-			List files = new ArrayList();
-			for ( Iterator i = srcDirs.iterator(); i.hasNext(); )
-			{
-				File dir = (File) i.next();
-				if ( dir.exists() )
-				{
-					files.addAll( FileUtils.getFiles( dir, StringUtils.join( compiler.getIncludes().iterator(), "," ),
-							null ) );
-				}
-			}
-			return files;
-		}
-		catch ( IOException e )
-		{
-			return Collections.EMPTY_LIST;
-		}
-	}
+    private List getSourcesFromSourceDirectories(Compiler compiler, List srcDirs)
+            throws MojoFailureException, MojoExecutionException {
+        try
+        {
+            List files = new ArrayList();
+            for ( Iterator i = srcDirs.iterator(); i.hasNext(); )
+            {
+                File dir = (File) i.next();
+                if ( dir.exists() )
+                {
+                    files.addAll( FileUtils.getFiles( dir, StringUtils.join( compiler.getIncludes().iterator(), "," ),
+                            null ) );
+                }
+            }
+            return files;
+        }
+        catch ( IOException e )
+        {
+            return Collections.EMPTY_LIST;
+        }
+    }
 
-	protected List getTestSourcesFor(Compiler compiler) throws MojoFailureException, MojoExecutionException
-	{
-		List srcDirs = compiler.getTestSourceDirectories();
-		return getSourcesFromSourceDirectories(compiler, srcDirs);
-	}
+    protected List getTestSourcesFor(Compiler compiler) throws MojoFailureException, MojoExecutionException
+    {
+        List srcDirs = compiler.getTestSourceDirectories();
+        return getSourcesFromSourceDirectories(compiler, srcDirs);
+    }
 }

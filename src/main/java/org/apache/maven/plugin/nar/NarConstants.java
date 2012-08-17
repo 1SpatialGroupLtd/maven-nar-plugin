@@ -25,11 +25,11 @@ package org.apache.maven.plugin.nar;
 public interface NarConstants
 {
     String NAR = "nar";
-    
+
     String NAR_EXTENSION = NAR;
 
     String NAR_NO_ARCH = "noarch";
-    
+
     String NAR_AOL = "aol";
 
     String NAR_ROLE_HINT = NAR;
@@ -45,4 +45,6 @@ public interface NarConstants
     int LOG_LEVEL_VERBOSE = 3;
 
     int LOG_LEVEL_DEBUG = 4;
+
+    String WINMD_FLAG = "/WINMD";
 }

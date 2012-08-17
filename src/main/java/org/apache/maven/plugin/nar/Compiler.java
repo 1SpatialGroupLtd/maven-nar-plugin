@@ -44,7 +44,7 @@ import org.codehaus.plexus.util.StringUtils;
 
 /**
  * Abstract Compiler class
- * 
+ *
  * @author Mark Donszelmann
  */
 public abstract class Compiler
@@ -53,14 +53,14 @@ public abstract class Compiler
     /**
      * The name of the compiler. Some choices are: "msvc", "g++", "gcc", "CC", "cc", "icc", "icpc", ... Default is
      * Architecture-OS-Linker specific: FIXME: table missing
-     * 
+     *
      * @parameter expression=""
      */
     private String name;
 
     /**
      * Source directory for native files
-     * 
+     *
      * @parameter expression="${basedir}/src/main"
      * @required
      */
@@ -68,7 +68,7 @@ public abstract class Compiler
 
     /**
      * Source directory for native test files
-     * 
+     *
      * @parameter expression="${basedir}/src/test"
      * @required
      */
@@ -76,7 +76,7 @@ public abstract class Compiler
 
     /**
      * Include patterns for sources
-     * 
+     *
      * @parameter expression=""
      * @required
      */
@@ -84,7 +84,7 @@ public abstract class Compiler
 
     /**
      * Exclude patterns for sources
-     * 
+     *
      * @parameter expression=""
      * @required
      */
@@ -92,7 +92,7 @@ public abstract class Compiler
 
     /**
      * Enables generation of exception handling code.
-     * 
+     *
      * @parameter expression="" default-value="true"
      * @required
      */
@@ -100,7 +100,7 @@ public abstract class Compiler
 
     /**
      * Enables run-time type information.
-     * 
+     *
      * @parameter expression="" default-value="true"
      * @required
      */
@@ -109,7 +109,7 @@ public abstract class Compiler
     /**
      * Sets optimization. Possible choices are: "none", "size", "minimal", "speed", "full", "aggressive", "extreme",
      * "unsafe".
-     * 
+     *
      * @parameter expression="" default-value="none"
      * @required
      */
@@ -117,7 +117,7 @@ public abstract class Compiler
 
     /**
      * Enables or disables generation of multi-threaded code. Default value: false, except on Windows.
-     * 
+     *
      * @parameter expression="" default-value="false"
      * @required
      */
@@ -125,7 +125,7 @@ public abstract class Compiler
 
     /**
      * Defines
-     * 
+     *
      * @parameter expression=""
      */
     private List defines;
@@ -133,14 +133,14 @@ public abstract class Compiler
     /**
      * Defines for the compiler as a comma separated list of name[=value] pairs, where the value is optional. Will work
      * in combination with &lt;defines&gt;.
-     * 
+     *
      * @parameter expression=""
      */
     private String defineSet;
 
     /**
      * Clears default defines
-     * 
+     *
      * @parameter expression="" default-value="false"
      * @required
      */
@@ -148,7 +148,7 @@ public abstract class Compiler
 
     /**
      * Undefines
-     * 
+     *
      * @parameter expression=""
      */
     private List undefines;
@@ -156,14 +156,14 @@ public abstract class Compiler
     /**
      * Undefines for the compiler as a comma separated list of name[=value] pairs where the value is optional. Will work
      * in combination with &lt;undefines&gt;.
-     * 
+     *
      * @parameter expression=""
      */
     private String undefineSet;
 
     /**
      * Clears default undefines
-     * 
+     *
      * @parameter expression="" default-value="false"
      * @required
      */
@@ -171,42 +171,42 @@ public abstract class Compiler
 
     /**
      * Include Paths. Defaults to "${sourceDirectory}/include"
-     * 
+     *
      * @parameter expression=""
      */
     private List includePaths;
 
     /**
      * Test Include Paths. Defaults to "${testSourceDirectory}/include"
-     * 
+     *
      * @parameter expression=""
      */
     private List testIncludePaths;
 
     /**
      * System Include Paths, which are added at the end of all include paths
-     * 
+     *
      * @parameter expression=""
      */
     private List systemIncludePaths;
 
     /**
      * Additional options for the C++ compiler Defaults to Architecture-OS-Linker specific values. FIXME table missing
-     * 
+     *
      * @parameter expression=""
      */
     private List options;
 
     /**
      * Options for the compiler as a whitespace separated list. Will work in combination with &lt;options&gt;.
-     * 
+     *
      * @parameter expression=""
      */
     private String optionSet;
 
     /**
      * Clears default options
-     * 
+     *
      * @parameter expression="" default-value="false"
      * @required
      */
@@ -214,7 +214,7 @@ public abstract class Compiler
 
     /**
      * Comma separated list of filenames to compile in order
-     * 
+     *
      * @parameter expression=""
      */
     private String compileOrder;
@@ -323,10 +323,10 @@ public abstract class Compiler
             includeList = new ArrayList();
             for ( Iterator i = getSourceDirectories( type ).iterator(); i.hasNext(); )
             {
-		//VR 20100318 only add include directories that exist - we now fail the build fast if an include directory does not exist 
+                //VR 20100318 only add include directories that exist - we now fail the build fast if an include directory does not exist
                 File includePath = new File( (File) i.next(), "include" );
                 if(includePath.isDirectory()) {
-                	includeList.add( includePath.getPath() );
+                    includeList.add( includePath.getPath() );
                 }
             }
         }
@@ -399,7 +399,7 @@ public abstract class Compiler
     {
         String name = getName();
         if (name == null) return null;
-        
+
         CompilerDef compiler = new CompilerDef();
         compiler.setProject( mojo.getAntProject() );
         CompilerEnum compilerName = new CompilerEnum();
@@ -557,9 +557,9 @@ public abstract class Compiler
         {
             String path = (String) i.next();
             // Darren Sargent, 30Jan2008 - fail build if invalid include path(s) specified.
-			if ( ! new File(path).exists() ) {
-				throw new MojoFailureException("NAR: Include path not found: " + path);
-			}
+            if ( ! new File(path).exists() ) {
+                throw new MojoFailureException("NAR: Include path not found: " + path);
+            }
             compiler.createIncludePath().setPath( path );
         }
 
@@ -629,5 +629,10 @@ public abstract class Compiler
     public final List getDefines()
     {
         return defines == null ? new ArrayList() : defines;
+    }
+
+    public void addOption(String option)
+    {
+        options.add(option);
     }
 }

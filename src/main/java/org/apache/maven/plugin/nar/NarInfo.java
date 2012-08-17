@@ -38,6 +38,8 @@ import org.apache.maven.plugin.logging.Log;
 public class NarInfo
 {
 
+    private static final String LIBS_WINRT = "libs.winrt";
+
     private static final String LIBS_NAMES = "libs.names";
 
     public static final String NAR_PROPERTIES = "nar.properties";
@@ -52,7 +54,7 @@ public class NarInfo
     {
         this( groupId, artifactId, version, log, null );
     }
-    
+
     public NarInfo( String groupId, String artifactId, String version, Log log, File propertiesFile ) throws MojoExecutionException
     {
         this.groupId = groupId;
@@ -121,7 +123,7 @@ public class NarInfo
 
     /**
      * No binding means default binding.
-     * 
+     *
      * @param aol
      * @return
      */
@@ -241,5 +243,15 @@ public class NarInfo
         }
         if( addLib )
             setProperty( aol, LIBS_NAMES, currentLibs + ", " + libName );
+    }
+
+    public void setTargetWinRT(AOL aol, boolean targetWinRT)
+    {
+        setProperty(aol, LIBS_WINRT, Boolean.toString(targetWinRT));
+    }
+
+    public boolean isTargetWinRT(AOL aol)
+    {
+        return getProperty(aol, LIBS_WINRT, false);
     }
 }
