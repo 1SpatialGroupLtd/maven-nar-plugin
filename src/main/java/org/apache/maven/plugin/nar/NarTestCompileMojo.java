@@ -44,7 +44,7 @@ import org.apache.tools.ant.Project;
 
 /**
  * Compiles native test source files.
- * 
+ *
  * @goal nar-testCompile
  * @phase test-compile
  * @requiresDependencyResolution test
@@ -55,7 +55,7 @@ public class NarTestCompileMojo
 {
     /**
      * Skip running of NAR integration test plugins.
-     * 
+     *
      * @parameter expression="${skipNar}" default-value="false"
      */
     protected boolean skipNar;
@@ -144,26 +144,26 @@ public class NarTestCompileMojo
         for ( Iterator i = getNarManager().getNarDependencies( "test" ).iterator(); i.hasNext(); )
         {
             Artifact artifact = (Artifact) i.next();
-            
+
             // check if it exists in the normal unpack directory
-            File include = 
+            File include =
                 getLayout().getIncludeDirectory( getUnpackDirectory(), artifact.getArtifactId(), artifact.getVersion() );
             if ( !include.exists() )
             {
                 // otherwise try the test unpack directory
-                include = 
+                include =
                     getLayout().getIncludeDirectory( getTestUnpackDirectory(), artifact.getArtifactId(), artifact.getVersion() );
             }
             if ( include.exists() )
-            {                
+            {
                 task.createIncludePath().setPath( include.getPath() );
             }
         }
-        
+
         // add javah generated include path
         File jniIncludeDir = getJavah().getJniDirectory();
         if (jniIncludeDir.exists()) {
-        	task.createIncludePath().setPath(jniIncludeDir.getPath());
+            task.createIncludePath().setPath(jniIncludeDir.getPath());
         }
 
         // add linker
@@ -203,14 +203,19 @@ public class NarTestCompileMojo
         // add library of this package
         if ( libDir.exists() )
         {
-            LibrarySet libSet = new LibrarySet();
-            libSet.setProject( antProject );
-            libSet.setLibs( new CUtil.StringArrayBuilder( libName ) );
-            LibraryTypeEnum libType = new LibraryTypeEnum();
-            libType.setValue( test.getLink() );
-            libSet.setType( libType );
-            libSet.setDir( libDir );
-            task.addLibset( libSet );
+            String libs = getNarInfo().getLibs( getAOL() );
+            if ( ( libs != null ) && !libs.equals( "" ) )
+            {
+                LibrarySet libSet = new LibrarySet();
+                libSet.setProject( antProject );
+                getLog().debug( "Using LIBS = " + libs );
+                libSet.setLibs( new CUtil.StringArrayBuilder( libs ) );
+                LibraryTypeEnum libType = new LibraryTypeEnum();
+                libType.setValue( test.getLink() );
+                libSet.setType( libType );
+                libSet.setDir( libDir );
+                task.addLibset( libSet );
+            }
         }
 
         // add dependency libraries
@@ -263,7 +268,7 @@ public class NarTestCompileMojo
 
             if ( !binding.equals( Library.JNI ) && !binding.equals( Library.NONE ) )
             {
-                // check if it exists in the normal unpack directory 
+                // check if it exists in the normal unpack directory
                 File dir =
                     getLayout().getLibDirectory( getUnpackDirectory(), dependency.getArtifactId(),
                                                   dependency.getVersion(), aol.toString(), binding );
