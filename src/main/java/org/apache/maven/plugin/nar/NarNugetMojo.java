@@ -80,6 +80,7 @@ public class NarNugetMojo extends AbstractCompileMojo
 	private static final String DLL_EXTENSION = ".dll";
 	private static final String WINMD_EXTENSION = ".winmd";
 	private static final String REFERENCE_TAG = "reference";
+	private static final String UNINSTALL_SCRIPT_NAME = "uninstall.ps1";
 
 	/**
 	 * @parameter expression=""
@@ -107,7 +108,7 @@ public class NarNugetMojo extends AbstractCompileMojo
 			populateNuspecFile();
 			createDllDirectory();
 			moveDlls();
-			addInstallScript();
+			addScripts();
 			packNugetPackage();
 			copyToCentralPackageSource();
 		}
@@ -137,19 +138,24 @@ public class NarNugetMojo extends AbstractCompileMojo
 			throw new MojoExecutionException("Failed to package " + nupkgFile.getName());
 	}
 
-	private void addInstallScript() throws MojoExecutionException, IOException, MojoFailureException
+	private void addScripts() throws MojoExecutionException, IOException, MojoFailureException
 	{
 		getLog().info("Adding install script");
 		File toolsDir = new File(nugetDir, TOOLS_LOCATION);
 		createDirectory(toolsDir);
-		File installScript = new File(toolsDir, INSTALL_SCRIPT_NAME);
 
-		addContentToInstallScript(installScript, NarUtil.class.getResourceAsStream(INSTALL_SCRIPT_NAME));
+		File installScript = new File(toolsDir, INSTALL_SCRIPT_NAME);
+		addContentToScript(installScript, NarUtil.class.getResourceAsStream(INSTALL_SCRIPT_NAME));
 		if(!installScript.exists())
 			throw new MojoExecutionException("Problem copying install script");
+
+		File uninstallScript = new File(toolsDir, UNINSTALL_SCRIPT_NAME);
+		addContentToScript(uninstallScript, NarUtil.class.getResourceAsStream(UNINSTALL_SCRIPT_NAME));
+		if(!uninstallScript.exists())
+			throw new MojoExecutionException("Problem copying uninstall script");
 	}
 
-	private void addContentToInstallScript(File installScriptOutput, InputStream installScriptResourceStream)
+	private void addContentToScript(File installScriptOutput, InputStream installScriptResourceStream)
 			throws IOException, MojoExecutionException, MojoFailureException {
 		BufferedReader scriptInput = null;
 		BufferedWriter scriptOutput = null;
