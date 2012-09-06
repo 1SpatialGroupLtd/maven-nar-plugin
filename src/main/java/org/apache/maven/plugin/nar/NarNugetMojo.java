@@ -309,7 +309,7 @@ public class NarNugetMojo extends AbstractCompileMojo
 		String revision;
 		if(getSnapshotIndex(version) == -1)
 		{
-			build = "0";
+			build = "2"; //indicates release version (must be higher than snapshot version)
 			revision = "0";
 		}
 		else
