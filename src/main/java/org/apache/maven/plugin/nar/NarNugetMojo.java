@@ -88,6 +88,11 @@ public class NarNugetMojo extends AbstractCompileMojo
 	 */
 	private String centralNugetPackageSource;
 
+	/**
+	 * @parameter expression="" default="false"
+	 */
+	private boolean createNugetPackage;
+
 	private File nugetDir;
 	private File nuspecFile;
 	private String moduleName;
@@ -99,6 +104,13 @@ public class NarNugetMojo extends AbstractCompileMojo
 	public void narExecute() throws MojoFailureException,
 			MojoExecutionException
 	{
+		//Only create nuget packages for modules we are explicitly told to.
+		if(!createNugetPackage)
+		{
+			getLog().info("Not creating nuget package as createNugetPackage is false.");
+			return;
+		}
+
 		moduleName = getMavenProject().getArtifactId();
 		try
 		{
