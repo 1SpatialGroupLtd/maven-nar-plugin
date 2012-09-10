@@ -49,7 +49,7 @@ public class NarNugetMojo extends AbstractCompileMojo
 	private static final String EMPTY_ARRAY = "@()";
 	private static final String SHARED = "shared";
 	private static final String NUPKG_EXTENSION = ".nupkg";
-	private static final String NUGET_PACK_COMMAND = "NuGet.exe pack";
+	private static final String NUGET_PACK_COMMAND = "NuGet.exe pack <nuspecFile> -NoPackageAnalysis";
 	private static final String TOOLS_LOCATION = "tools";
 	private static final String INSTALL_SCRIPT_NAME = "install.ps1";
 	private static final String VERSION_ATTRIBUTE = "version";
@@ -142,7 +142,7 @@ public class NarNugetMojo extends AbstractCompileMojo
 
 	private void packNugetPackage() throws MojoExecutionException, IOException, InterruptedException
 	{
-		String command = NUGET_PACK_COMMAND + " " + nuspecFile.getName();
+		String command = NUGET_PACK_COMMAND.replace("<nuspecFile>", nuspecFile.getName());
 		runCommandLogOutput(command);
 
 		nupkgFile = new File(nugetDir, moduleName + "." + version + NUPKG_EXTENSION);
