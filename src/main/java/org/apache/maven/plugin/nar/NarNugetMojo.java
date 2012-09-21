@@ -502,31 +502,14 @@ public class NarNugetMojo extends AbstractCompileMojo
 
 		Process specProcess = builder.start();
 		CommandResult result = new CommandResult();
-		BufferedReader reader = new BufferedReader(new InputStreamReader(specProcess.getInputStream()));
-		while(isRunning(specProcess))
-			while(reader.ready())
-				result.output.add(reader.readLine());
+		StreamEater eater = new StreamEater(specProcess.getInputStream(), result.output);
+		eater.start();
 
 		result.exitCode = specProcess.waitFor();
-		while(reader.ready()) // read any output we missed if the process ends exceptionally quickly
-			result.output.add(reader.readLine());
 
 		getLog().debug("Command " + command + " returned: " + result.exitCode);
 
 		return result;
-	}
-
-	private boolean isRunning(Process process)
-	{
-		try
-		{
-			process.exitValue();
-			return false;
-		}
-		catch(IllegalThreadStateException e)
-		{
-			return true;
-		}
 	}
 
 	private void createNuspecDocument() throws SAXException, IOException, ParserConfigurationException
@@ -557,14 +540,53 @@ public class NarNugetMojo extends AbstractCompileMojo
 		return !directory.exists();
 	}
 
-	private class CommandResult
-	{
-		int exitCode;
-		List output;
+    private class CommandResult
+    {
+        int exitCode;
+        List output;
 
-		CommandResult()
-		{
-			output = new ArrayList();
-		}
-	}
+        CommandResult()
+        {
+            output = new ArrayList();
+        }
+    }
+
+    private class StreamEater extends Thread
+    {
+        InputStream is;
+        List outputStrings;
+
+        StreamEater(InputStream is, List outputStrings)
+        {
+            this.is = is;
+            this.outputStrings = outputStrings;
+        }
+
+        public void run()
+        {
+            try
+            {
+                BufferedReader br = new BufferedReader(new InputStreamReader(is));
+                String line = null;
+                boolean output = true;
+                while((line = br.readLine()) != null || output) //the line assignment needs to be first else it is short circuited
+                {
+                    if(line == null)
+                    {
+                        output = false;
+                        sleep(1000);
+                    }
+                    else
+                    {
+                        output = true;
+                        outputStrings.add(line);
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                e.printStackTrace();
+            }
+        }
+    }
 }
