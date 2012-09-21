@@ -6,7 +6,10 @@ foreach ($content in $contentArray)
 {
 	$item = $project.ProjectItems.Item($content)
 
-	# set 'Copy To Output Directory' to 'Copy if newer'
-	$copyToOutput = $item.Properties.Item("CopyToOutputDirectory")
-	$copyToOutput.Value = 2
+	if($Item)
+	{
+		# set 'Copy To Output Directory' to 'Copy if newer'
+		$copyToOutput = $item.Properties.Item("CopyToOutputDirectory")
+		$copyToOutput.Value = 2
+	}
 }

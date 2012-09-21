@@ -137,10 +137,15 @@ public abstract class AbstractResourcesMojo
                 String includes =
                     "**/*." + NarProperties.getInstance(getMavenProject()).getProperty( NarUtil.getAOLKey( aol ) + "." + type + ".extension" );
 
-                // add import lib for Windows shared libraries
-                if ( new AOL( aol ).getOS().equals( OS.WINDOWS ) && type.equals( Library.SHARED ) )
+                // Windows specific stuff
+                if ( new AOL( aol ).getOS().equals( OS.WINDOWS ) )
                 {
-                    includes += ",**/*.lib";
+                    //Always copy any pdb files
+                    includes += ", **/*.pdb";
+
+                    //If we are building a shared library copy the lib file
+                    if( type.equals( Library.SHARED ))
+                        includes += ",**/*.lib";
                 }
                 copied += NarUtil.copyDirectoryStructure( libDir, libDstDir, includes, NarUtil.DEFAULT_EXCLUDES );
             }

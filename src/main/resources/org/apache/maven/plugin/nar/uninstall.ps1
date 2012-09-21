@@ -4,5 +4,10 @@ $contentArray = <contentPlaceholder>
 
 foreach ($content in $contentArray)
 {
-	$project.ProjectItems.Item($content).Remove()
+	$Item = $project.ProjectItems.Item($content)
+
+	if($Item)
+	{
+		$Item.Remove()
+	}
 }

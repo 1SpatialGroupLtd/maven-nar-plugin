@@ -82,6 +82,7 @@ public class NarNugetMojo extends AbstractCompileMojo
 	private static final String WINMD_EXTENSION = ".winmd";
 	private static final String REFERENCE_TAG = "reference";
 	private static final String UNINSTALL_SCRIPT_NAME = "uninstall.ps1";
+	protected static final String PDB_EXTENSION = ".pdb";
 
 	/**
 	 * @parameter expression=""
@@ -97,10 +98,11 @@ public class NarNugetMojo extends AbstractCompileMojo
 	private File nugetDir;
 	private File nuspecFile;
 	private String packageName;
-	private File dllDirectory;
+	private File libDirectory;
 	private Document nuspecDocument;
 	private String version;
 	private File nupkgFile;
+	private File contentDirectory;
 
 	public void narExecute() throws MojoFailureException,
 			MojoExecutionException
@@ -119,8 +121,13 @@ public class NarNugetMojo extends AbstractCompileMojo
 			cleanNugetDirectory();
 			createTemplateNuspecFile();
 			populateNuspecFile();
-			createDllDirectory();
-			moveDlls();
+			createContentDirectory();
+			moveContent();
+			if(isWinRT())
+			{
+				createLibDirectory();
+				moveLibs();
+			}
 			addScripts();
 			packNugetPackage();
 			copyToCentralPackageSource();
@@ -129,6 +136,75 @@ public class NarNugetMojo extends AbstractCompileMojo
 		{
 			throw new MojoFailureException("Failed to create NuGet package", e);
 		}
+	}
+
+	private void moveFiles(File destination, FilenameFilter filefilter) throws MojoExecutionException, MojoFailureException, IOException
+	{
+		MavenProject mavenProject = getMavenProject();
+		File libDir = getLayout().getLibDirectory(getTargetDirectory(),
+				mavenProject.getArtifactId(), mavenProject.getVersion(),
+				getAOL().toString(), SHARED); //We only care about dlls.
+		getLog().debug("Source directory: " + libDir);
+		getLog().debug("Destination directory: " + destination);
+
+		File[] filesToCopy = libDir.listFiles(filefilter);
+		if(filesToCopy != null)
+			for(int i = 0; i < filesToCopy.length; i++)
+				copyToDirectory(filesToCopy[i], destination);
+	}
+
+	private void moveContent() throws MojoExecutionException, MojoFailureException, IOException
+	{
+		getLog().info("Copying to content folder");
+
+		FilenameFilter filter = new FilenameFilter()
+		{
+			public boolean accept(File dir, String name)
+			{
+				try
+				{
+					if(isWinRT())
+						return name.endsWith(PDB_EXTENSION);
+				}
+				catch (Exception e)
+				{
+					e.printStackTrace(); //we can't escalate the exception out of this inner class
+					return false;
+				}
+				return name.endsWith(DLL_EXTENSION) || name.endsWith(PDB_EXTENSION);
+			}
+		};
+
+		moveFiles(contentDirectory, filter);
+	}
+
+	private void moveLibs() throws MojoExecutionException, MojoFailureException, IOException
+	{
+		getLog().info("Copying to lib folder");
+
+		FilenameFilter filter = new FilenameFilter()
+		{
+			public boolean accept(File dir, String name)
+			{
+				return name.endsWith(DLL_EXTENSION) || name.endsWith(WINMD_EXTENSION);
+			}
+		};
+
+		moveFiles(libDirectory, filter);
+	}
+
+	private void createContentDirectory() throws MojoExecutionException
+	{
+		contentDirectory = new File(nugetDir, CONTENT_LOCATION);
+		getLog().info("Creating " + contentDirectory);
+		createDirectory(contentDirectory);
+	}
+
+	private void createLibDirectory() throws MojoExecutionException
+	{
+		libDirectory = new File(nugetDir, LIB_LOCATION + File.separator + WINRT_FRAMEWORK);
+		getLog().info("Creating " + libDirectory);
+		createDirectory(libDirectory);
 	}
 
 	private String convertToPackageName(String artifactId)
@@ -213,24 +289,19 @@ public class NarNugetMojo extends AbstractCompileMojo
 		if(!line.contains(CONTENT_PLACEHOLDER))
 			return line;
 		String content;
-		if(isWinRT())
+		String[] contentNames = contentDirectory.list();
+		if(contentNames.length == 0)
 			content = EMPTY_ARRAY;
 		else
 		{
-			String[] contentNames = dllDirectory.list();
-			if(contentNames.length == 0)
-				content = EMPTY_ARRAY;
-			else
+			StringBuilder builder = new StringBuilder();
+			for(int i = 0; i < contentNames.length; i++)
 			{
-				StringBuilder builder = new StringBuilder();
-				for(int i = 0; i < contentNames.length; i++)
-				{
-					builder.append("\"" + contentNames[i] + "\"");
-					if(i < contentNames.length - 1)
-						builder.append(",");
-				}
-				content = builder.toString();
+				builder.append("\"" + contentNames[i] + "\"");
+				if(i < contentNames.length - 1)
+					builder.append(",");
 			}
+			content = builder.toString();
 		}
 		getLog().debug("Setting content to " + content);
 		return line.replaceAll(CONTENT_PLACEHOLDER, content);
@@ -276,9 +347,11 @@ public class NarNugetMojo extends AbstractCompileMojo
 				getLog().debug("Not adding dependency " + dependencyName + " as it has no dlls");
 				continue;
 			}
-			getLog().debug("Adding dependency " + dependencyName);
+
+			String nugetDependencyName = convertToPackageName(dependencyName);
+			getLog().debug("Adding dependency " + dependencyName + " as " + nugetDependencyName);
 			Element dependencyElement = nuspecDocument.createElement(DEPENDENCY_TAG);
-			dependencyElement.setAttribute(ID_ATTRIBUTE, dependencyName);
+			dependencyElement.setAttribute(ID_ATTRIBUTE, nugetDependencyName);
 			dependencyElement.setAttribute(VERSION_ATTRIBUTE, getNugetMajorMinorVersion(dependency.getVersion()));
 			getNamedNode(DEPENDENCIES_TAG).appendChild(dependencyElement);
 		}
@@ -384,59 +457,10 @@ public class NarNugetMojo extends AbstractCompileMojo
 		return version.indexOf(SNAPSHOT_SUFFIX);
 	}
 
-	//WinRT: copy over dll and winmd
-	//other: copy over dll
-	private void moveDlls() throws MojoExecutionException, MojoFailureException, IOException
-	{
-		getLog().info("Copying dlls");
-		MavenProject mavenProject = getMavenProject();
-		File libDir = getLayout().getLibDirectory(getTargetDirectory(),
-				mavenProject.getArtifactId(), mavenProject.getVersion(),
-				getAOL().toString(), SHARED); //We only care about dlls.
-		getLog().debug("Source directory: " + libDir);
-		getLog().debug("Destination directory: " + dllDirectory);
-
-		FilenameFilter filter;
-		if(isWinRT())
-			filter = new FilenameFilter()
-			{
-				public boolean accept(File dir, String name)
-				{
-					return name.endsWith(DLL_EXTENSION) || name.endsWith(WINMD_EXTENSION);
-				}
-			};
-		else
-			filter = new FilenameFilter()
-			{
-				public boolean accept(File dir, String name)
-				{
-					return name.endsWith(DLL_EXTENSION);
-				}
-			};
-		File[] filesToCopy = libDir.listFiles(filter);
-		if(filesToCopy != null)
-			for(int i = 0; i < filesToCopy.length; i++)
-				copyToDirectory(filesToCopy[i], dllDirectory);
-	}
-
 	private void copyToDirectory(File file, File destinationDir) throws IOException
 	{
 		getLog().debug("Copying " + file.getName());
 		FileUtils.copyFileToDirectory(file, destinationDir);
-	}
-
-	//WinRT dll (and winmd) files want to go under /lib/WinRT<version>
-	//other dlls want to go under /content
-	private void createDllDirectory() throws MojoExecutionException, MojoFailureException
-	{
-		String path;
-		if(isWinRT())
-			path = LIB_LOCATION + File.separator + WINRT_FRAMEWORK;
-		else
-			path = CONTENT_LOCATION;
-		dllDirectory = new File(nugetDir, path);
-		getLog().info("Creating " + dllDirectory);
-		createDirectory(dllDirectory);
 	}
 
 	private boolean isWinRT() throws MojoExecutionException, MojoFailureException
@@ -484,6 +508,9 @@ public class NarNugetMojo extends AbstractCompileMojo
 				result.output.add(reader.readLine());
 
 		result.exitCode = specProcess.waitFor();
+		while(reader.ready()) // read any output we missed if the process ends exceptionally quickly
+			result.output.add(reader.readLine());
+
 		getLog().debug("Command " + command + " returned: " + result.exitCode);
 
 		return result;
