@@ -8,6 +8,7 @@ import java.io.FilenameFilter;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 
@@ -95,7 +96,7 @@ public class NarNugetMojo extends AbstractCompileMojo
 
 	private File nugetDir;
 	private File nuspecFile;
-	private String moduleName;
+	private String packageName;
 	private File dllDirectory;
 	private Document nuspecDocument;
 	private String version;
@@ -111,7 +112,7 @@ public class NarNugetMojo extends AbstractCompileMojo
 			return;
 		}
 
-		moduleName = getMavenProject().getArtifactId();
+		packageName = convertToPackageName(getMavenProject().getArtifactId());
 		try
 		{
 			version = getNugetVersion();
@@ -130,6 +131,20 @@ public class NarNugetMojo extends AbstractCompileMojo
 		}
 	}
 
+	private String convertToPackageName(String artifactId)
+	{
+		String[] parts = artifactId.split("-");
+		StringBuilder builder = new StringBuilder();
+		for (int i = 0; i < parts.length; i++)
+		{
+			if(builder.length() > 0)
+				builder.append(".");
+			builder.append(Character.toUpperCase(parts[i].charAt(0)));
+			builder.append(parts[i].substring(1).trim());
+		}
+		return builder.toString();
+	}
+
 	private void copyToCentralPackageSource() throws MojoExecutionException, IOException
 	{
 		getLog().info("Copying package to local package source");
@@ -145,7 +160,7 @@ public class NarNugetMojo extends AbstractCompileMojo
 		String command = NUGET_PACK_COMMAND.replace("<nuspecFile>", nuspecFile.getName());
 		runCommandLogOutput(command);
 
-		nupkgFile = new File(nugetDir, moduleName + "." + version + NUPKG_EXTENSION);
+		nupkgFile = new File(nugetDir, packageName + "." + version + NUPKG_EXTENSION);
 		if(!nupkgFile.exists())
 			throw new MojoExecutionException("Failed to package " + nupkgFile.getName());
 	}
@@ -337,13 +352,13 @@ public class NarNugetMojo extends AbstractCompileMojo
 		String revision = "0"; //Default value for first snapshot package
 		CommandResult result = runCommand(NUGET_LIST_COMMAND + " " + centralNugetPackageSource);
 
-		String line = null;
-		while((line = result.output.readLine()) != null)
+		for(Iterator it = result.output.iterator(); it.hasNext();)
 		{
+			String line  = (String)it.next();
 			getLog().debug(line);
-			if(!line.startsWith(moduleName))
+			if(!line.startsWith(packageName))
 				continue;
-			String latestVersion = line.substring(moduleName.length() + 1);
+			String latestVersion = line.substring(packageName.length() + 1);
 			if(!latestVersion.startsWith(majorMinor))
 				break;
 			String buildRevision = latestVersion.substring(majorMinor.length() + 1);
@@ -431,10 +446,10 @@ public class NarNugetMojo extends AbstractCompileMojo
 
 	private void createTemplateNuspecFile() throws IOException, InterruptedException, MojoExecutionException, SAXException, ParserConfigurationException
 	{
-		String command = NUGET_SPEC_COMMAND + " " + moduleName;
+		String command = NUGET_SPEC_COMMAND + " " + packageName;
 		runCommandLogOutput(command);
 
-		nuspecFile = new File(nugetDir, moduleName + NUSPEC_EXTENSION);
+		nuspecFile = new File(nugetDir, packageName + NUSPEC_EXTENSION);
 		if (!nuspecFile.exists())
 			throw new MojoExecutionException("Failed to create " + nuspecFile.getName());
 
@@ -446,11 +461,9 @@ public class NarNugetMojo extends AbstractCompileMojo
 	{
 		CommandResult result = runCommand(command);
 
-		String line = null;
-		while((line = result.output.readLine()) != null)
-			getLog().debug(line);
+		for(Iterator it = result.output.iterator(); it.hasNext();)
+			getLog().debug((String)it.next());
 
-		getLog().debug("Command " + command + " returned: " + result.exitCode);
 		if(result.exitCode != 0)
 			throw new MojoExecutionException("Problem running command " + command + ". Exit code: " + result.exitCode);
 	}
@@ -465,10 +478,28 @@ public class NarNugetMojo extends AbstractCompileMojo
 
 		Process specProcess = builder.start();
 		CommandResult result = new CommandResult();
+		BufferedReader reader = new BufferedReader(new InputStreamReader(specProcess.getInputStream()));
+		while(isRunning(specProcess))
+			while(reader.ready())
+				result.output.add(reader.readLine());
+
 		result.exitCode = specProcess.waitFor();
-		result.output = new BufferedReader(new InputStreamReader(specProcess.getInputStream()));
+		getLog().debug("Command " + command + " returned: " + result.exitCode);
 
 		return result;
+	}
+
+	private boolean isRunning(Process process)
+	{
+		try
+		{
+			process.exitValue();
+			return false;
+		}
+		catch(IllegalThreadStateException e)
+		{
+			return true;
+		}
 	}
 
 	private void createNuspecDocument() throws SAXException, IOException, ParserConfigurationException
@@ -502,6 +533,11 @@ public class NarNugetMojo extends AbstractCompileMojo
 	private class CommandResult
 	{
 		int exitCode;
-		BufferedReader output;
+		List output;
+
+		CommandResult()
+		{
+			output = new ArrayList();
+		}
 	}
 }
