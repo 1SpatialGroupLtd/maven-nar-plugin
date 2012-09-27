@@ -59,20 +59,18 @@ public abstract class Compiler
     private String name;
 
     /**
-     * Source directory for native files
+     * Source directories for native files
      *
-     * @parameter expression="${basedir}/src/main"
-     * @required
+     * @parameter
      */
-    private File sourceDirectory;
+    private List /*<String>*/ sourceDirectories;
 
     /**
      * Source directory for native test files
      *
-     * @parameter expression="${basedir}/src/test"
-     * @required
+     * @parameter
      */
-    private File testSourceDirectory;
+    private List /*<String>*/ testSourceDirectories;
 
     /**
      * Include patterns for sources
@@ -256,18 +254,21 @@ public abstract class Compiler
 
     private List/* <File> */getSourceDirectories( String type )
     {
-        List sourceDirectories = new ArrayList();
+        List sourceDirectoriesAsFiles = new ArrayList();
         File baseDir = mojo.getMavenProject().getBasedir();
 
         if ( type.equals( TEST ) )
         {
-            if ( testSourceDirectory == null )
+            if ( testSourceDirectories == null )
+                testSourceDirectories = new ArrayList();
+               testSourceDirectories.add(baseDir + "/src/test"); //Always add src/test
+            for(Iterator it = testSourceDirectories.iterator(); it.hasNext();)
             {
-                testSourceDirectory = new File( baseDir, "/src/test" );
-            }
-            if ( testSourceDirectory.exists() )
-            {
-                sourceDirectories.add( testSourceDirectory );
+                File source = new File((String)it.next());
+                if ( source.exists() )
+                {
+                    sourceDirectoriesAsFiles.add( source );
+                }
             }
 
             for ( Iterator i = mojo.getMavenProject().getTestCompileSourceRoots().iterator(); i.hasNext(); )
@@ -275,19 +276,22 @@ public abstract class Compiler
                 File extraTestSourceDirectory = new File( (String) i.next() );
                 if ( extraTestSourceDirectory.exists() )
                 {
-                    sourceDirectories.add( extraTestSourceDirectory );
+                    sourceDirectoriesAsFiles.add( extraTestSourceDirectory );
                 }
             }
         }
         else
         {
-            if ( sourceDirectory == null )
+            if ( sourceDirectories == null )
+                sourceDirectories = new ArrayList();
+               sourceDirectories.add(baseDir + "/src/main"); //Always add src/main
+            for(Iterator it = sourceDirectories.iterator(); it.hasNext();)
             {
-                sourceDirectory = new File( baseDir, "src/main" );
-            }
-            if ( sourceDirectory.exists() )
-            {
-                sourceDirectories.add( sourceDirectory );
+                File source = new File((String)it.next());
+                if ( source.exists() )
+                {
+                    sourceDirectoriesAsFiles.add( source );
+                }
             }
 
             for ( Iterator i = mojo.getMavenProject().getCompileSourceRoots().iterator(); i.hasNext(); )
@@ -295,19 +299,19 @@ public abstract class Compiler
                 File extraSourceDirectory = new File( (String) i.next() );
                 if ( extraSourceDirectory.exists() )
                 {
-                    sourceDirectories.add( extraSourceDirectory );
+                    sourceDirectoriesAsFiles.add( extraSourceDirectory );
                 }
             }
         }
 
         if ( mojo.getLog().isDebugEnabled() )
         {
-            for ( Iterator i = sourceDirectories.iterator(); i.hasNext(); )
+            for ( Iterator i = sourceDirectoriesAsFiles.iterator(); i.hasNext(); )
             {
                 mojo.getLog().debug( "Added to sourceDirectory: " + ( (File) i.next() ).getPath() );
             }
         }
-        return sourceDirectories;
+        return sourceDirectoriesAsFiles;
     }
 
     protected final List/* <String> */getIncludePaths( String type )
