@@ -66,10 +66,6 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalDependencies>[#libraries#]%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
-    <PostBuildEvent>
-      <Command>cd ..\..\
-mvn package</Command>
-    </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <ClCompile>
@@ -89,10 +85,6 @@ mvn package</Command>
       <OptimizeReferences>true</OptimizeReferences>
       <AdditionalDependencies>[#libraries#]%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
-    <PostBuildEvent>
-      <Command>cd ..\..\
-mvn package</Command>
-    </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
 [#headerFileElements#]

@@ -66,6 +66,10 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalDependencies>[#libraries#]%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
+    <PreBuildEvent>
+      <Command>cd ..\..\
+mvn package</Command>
+    </PreBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <ClCompile>
@@ -85,6 +89,10 @@
       <OptimizeReferences>true</OptimizeReferences>
       <AdditionalDependencies>[#libraries#]%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
+    <PreBuildEvent>
+      <Command>cd ..\..\
+mvn package</Command>
+    </PreBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
 [#headerFileElements#]
