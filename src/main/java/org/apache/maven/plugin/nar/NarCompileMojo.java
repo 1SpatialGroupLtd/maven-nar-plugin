@@ -93,12 +93,24 @@ public class NarCompileMojo
 
         try
         {
+            //if we only contain pch libraries we don't want to copy the headers
+            boolean copyHeaders = false;
+            for ( Iterator i = getLibraries().iterator(); i.hasNext(); )
+                if(!((Library) i.next()).getType().equals(Library.PCH))
+                {
+                    copyHeaders = true;
+                    break;
+                }
+
             // FIXME, should the include paths be defined at a higher level ?
-            getCpp().copyIncludeFiles(
+            if(copyHeaders)
+            {
+                getCpp().copyIncludeFiles(
                                        getMavenProject(),
                                        getLayout().getIncludeDirectory( getTargetDirectory(),
                                                                         getMavenProject().getArtifactId(),
                                                                         getMavenProject().getVersion() ) );
+            }
         }
         catch ( IOException e )
         {
@@ -123,10 +135,14 @@ public class NarCompileMojo
         task.setMaxCores(getMaxCores(getAOL()));
 
         // outtype
-        OutputTypeEnum outTypeEnum = new OutputTypeEnum();
         String type = library.getType();
-        outTypeEnum.setValue(type);
-        task.setOuttype(outTypeEnum);
+
+        if(!type.equals(Library.PCH)) //we only need this if we are linking
+        {
+            OutputTypeEnum outTypeEnum = new OutputTypeEnum();
+            outTypeEnum.setValue(type);
+            task.setOuttype(outTypeEnum);
+        }
 
         // stdc++
         task.setLinkCPP(library.linkCPP());
@@ -159,18 +175,33 @@ public class NarCompileMojo
             // executable has no version number
             outFile = new File(outDir, getMavenProject().getArtifactId());
         }
+        else if(type.equals(Library.PCH))
+        {
+            outFile = null; //This stops us linking
+        }
         else
         {
             outFile = new File(outDir, getOutput(getAOL()));
         }
-        getLog().debug("NAR - output: '" + outFile + "'");
+        if(outFile != null)
+            getLog().debug("NAR - output: '" + outFile + "'");
+        else
+            getLog().debug("NAR - no output; not linking");
+
         task.setOutfile(outFile);
 
         // object directory
-        File objDir = new File(getTargetDirectory(), "obj");
-        objDir = new File(objDir, getAOL().toString());
-        objDir.mkdirs();
-        task.setObjdir(objDir);
+        if(type.equals(Library.PCH))
+        {
+            task.setObjdir(outDir); //we want the pch as the output
+        }
+        else
+        {
+            File objDir = new File(getTargetDirectory(), "obj");
+            objDir = new File(objDir, getAOL().toString());
+            objDir.mkdirs();
+            task.setObjdir(objDir);
+        }
 
         // failOnError, libtool
         task.setFailonerror(failOnError(getAOL()));
@@ -182,13 +213,14 @@ public class NarCompileMojo
         task.setRuntime(runtimeType);
 
         Compiler cppCompiler = getCpp();
+        //Add options for compiling against a winmd file
         getLog().info("Looking for WinRT dependencies");
         for (Iterator i = getNarManager().getNarDependencies(Artifact.SCOPE_COMPILE).iterator(); i.hasNext();)
         {
             NarArtifact dependency = (NarArtifact)i.next();
             if(dependency.getNarInfo().isTargetWinRT(getAOL()))
             {
-                getLog().debug("Found WinRT dependnency " + dependency.getArtifactId());
+                getLog().debug("Found WinRT dependency " + dependency.getArtifactId());
                 String binding = dependency.getNarInfo().getBinding(getAOL(), "static");
                 if(!binding.equals("shared"))
                 {
@@ -207,9 +239,43 @@ public class NarCompileMojo
                 });
                 for(int index = 0; index < winmdFiles.length; index++)
                 {
-                    String option = "/FU"+winmdFiles[index].getPath();
-                    getLog().debug("Added compile option " + option);
-                    cppCompiler.addOption(option);
+                    addCompileOption(cppCompiler, "/FU"+winmdFiles[index].getPath());
+                }
+            }
+        }
+
+        //Add precompiled header options
+        for ( Iterator i = getNarManager().getNarDependencies( "compile" ).iterator(); i.hasNext(); )
+        {
+            NarArtifact narDependency = (NarArtifact) i.next();
+            String binding = narDependency.getNarInfo().getBinding(getAOL(), Library.STATIC);
+            getLog().debug( "Looking for " + narDependency + " found binding " + binding);
+            if (binding.equals(Library.PCH ) )
+            {
+                getLog().debug("Found pch dependency " + narDependency.getArtifactId());
+                File unpackDirectory = getUnpackDirectory();
+                File pchDir =
+                    getLayout().getLibDirectory(unpackDirectory, narDependency.getArtifactId(),
+                            narDependency.getVersion(), getAOL().toString(), binding);
+
+                File[] pchFiles = pchDir.listFiles(new FilenameFilter()
+                {
+                    public boolean accept(File dir, String name)
+                    {
+                        return name.endsWith(".pch");
+                    }
+                });
+                for(int index = 0; index < pchFiles.length; index++)
+                {
+                    String pchName = pchFiles[index].getName();
+                    addCompileOption(cppCompiler, "/Yu" + pchName.replace(".pch", ".h"));
+                    addCompileOption(cppCompiler, "/Fp" + pchFiles[index].getPath());
+                    if(debug)
+                    {
+                        File pdbFile = new File(pchDir, pchName.replace(".pch", ".pdb"));
+                        if(pdbFile.exists())
+                            addCompileOption(cppCompiler, "/Fd" + pdbFile.getPath());
+                    }
                 }
             }
         }
@@ -258,9 +324,20 @@ public class NarCompileMojo
             if ( !binding.equals(Library.JNI ) )
             {
                 File unpackDirectory = getUnpackDirectory();
-                File include =
-                    getLayout().getIncludeDirectory( unpackDirectory, narDependency.getArtifactId(),
-                                                     narDependency.getVersion() );
+                File include;
+                if(binding.equals(Library.PCH))
+                {
+                    include =
+                        getLayout().getLibDirectory(unpackDirectory, narDependency.getArtifactId(),
+                            narDependency.getVersion(), getAOL().toString(), binding);
+                }
+                else
+                {
+                    include =
+                        getLayout().getIncludeDirectory( unpackDirectory, narDependency.getArtifactId(),
+                                                         narDependency.getVersion() );
+                }
+
                 getLog().debug( "Looking for include directory: " + include );
                 if ( include.exists() )
                 {
@@ -375,6 +452,25 @@ public class NarCompileMojo
                         sysLibSet.setLibs( new CUtil.StringArrayBuilder( sysLibs ) );
                         task.addSyslibset(sysLibSet);
                     }
+
+                    //Add obj files for pre compiled headers to the linker
+                    if(binding.equals(Library.PCH))
+                    {
+                        File[] objFiles = dir.listFiles(new FilenameFilter()
+                        {
+                            public boolean accept(File dir, String name)
+                            {
+                                return name.endsWith(".obj");
+                            }
+                        });
+                        for(int index = 0; index < objFiles.length; index++)
+                        {
+                            getLog().debug("adding precomiled header obj file" + objFiles[index]);
+                            LinkerArgument arg = new LinkerArgument();
+                            arg.setValue(objFiles[index].getPath());
+                            linkerDefinition.addConfiguredLinkerArg(arg);
+                        }
+                    }
                 }
             }
         }
@@ -419,5 +515,11 @@ public class NarCompileMojo
                             "MT.EXE failed with exit code: " + result);
             }
         }
+    }
+
+    private void addCompileOption(Compiler compiler, String option)
+    {
+        getLog().debug("Added compile option " + option);
+        compiler.addOption(option);
     }
 }

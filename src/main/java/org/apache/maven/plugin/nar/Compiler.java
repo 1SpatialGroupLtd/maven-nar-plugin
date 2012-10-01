@@ -261,7 +261,7 @@ public abstract class Compiler
         {
             if ( testSourceDirectories == null )
                 testSourceDirectories = new ArrayList();
-               testSourceDirectories.add(baseDir + "/src/test"); //Always add src/test
+            testSourceDirectories.add(baseDir + "/src/test"); //Always add src/test
             for(Iterator it = testSourceDirectories.iterator(); it.hasNext();)
             {
                 File source = new File((String)it.next());
@@ -284,7 +284,7 @@ public abstract class Compiler
         {
             if ( sourceDirectories == null )
                 sourceDirectories = new ArrayList();
-               sourceDirectories.add(baseDir + "/src/main"); //Always add src/main
+            sourceDirectories.add(baseDir + "/src/main"); //Always add src/main
             for(Iterator it = sourceDirectories.iterator(); it.hasNext();)
             {
                 File source = new File((String)it.next());

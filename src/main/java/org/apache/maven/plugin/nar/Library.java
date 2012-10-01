@@ -24,7 +24,7 @@ import java.util.List;
 
 /**
  * Sets up a library to create
- * 
+ *
  * @author Mark Donszelmann
  */
 public class Library
@@ -43,52 +43,54 @@ public class Library
 
     public static final String NONE = "none"; // no library produced
 
+    public static final String PCH = "pch";
+
     /**
      * Type of the library to generate. Possible choices are: "plugin", "shared", "static", "jni" or "executable".
      * Defaults to "shared".
-     * 
+     *
      * @parameter expression=""
      */
     private String type = SHARED;
-    
+
     /**
      * Type of subsystem to generate: "gui", "console", "other". Defaults to "console".
      *
      * @parameter expression=""
      */
     private String subSystem = "console";
-    
+
     /**
      * Link with stdcpp if necessary Defaults to true.
-     * 
+     *
      * @parameter expression=""
      */
     private boolean linkCPP = true;
 
     /**
      * Link with fortran runtime if necessary Defaults to false.
-     * 
+     *
      * @parameter expression=""
      */
     private boolean linkFortran = false;
 
     /**
      * Link with fortran startup, so that the gcc linker can find the "main" of fortran. Defaults to false.
-     * 
+     *
      * @parameter expression=""
      */
     private boolean linkFortranMain = false;
 
     /**
      * If specified will create the NarSystem class with methods to load a JNI library.
-     * 
+     *
      * @parameter expression=""
      */
     private String narSystemPackage = null;
 
     /**
      * Name of the NarSystem class
-     * 
+     *
      * @parameter expression="NarSystem"
      * @required
      */
@@ -96,7 +98,7 @@ public class Library
 
     /**
      * The target directory into which to generate the output.
-     * 
+     *
      * @parameter expression="${project.build.dir}/nar/nar-generated"
      * @required
      */
@@ -104,7 +106,7 @@ public class Library
 
     /**
      * When true and if type is "executable" run this executable. Defaults to false;
-     * 
+     *
      * @parameter expression=""
      */
     private boolean run = false;
@@ -112,7 +114,7 @@ public class Library
     /**
      * Arguments to be used for running this executable. Defaults to empty list. This option is only used if run=true
      * and type=executable.
-     * 
+     *
      * @parameter expression=""
      */
     private List/* <String> */args = new ArrayList();
