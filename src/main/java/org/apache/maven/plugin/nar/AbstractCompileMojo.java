@@ -20,11 +20,15 @@ package org.apache.maven.plugin.nar;
  */
 
 import java.io.File;
+import java.io.FilenameFilter;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
+
+import net.sf.antcontrib.cpptasks.LinkerDef;
+import net.sf.antcontrib.cpptasks.types.LinkerArgument;
 
 import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.plugin.MojoFailureException;
@@ -390,5 +394,74 @@ public abstract class AbstractCompileMojo
     {
         List srcDirs = compiler.getTestSourceDirectories();
         return getSourcesFromSourceDirectories(compiler, srcDirs);
+    }
+
+    protected void addPrecompiledHeaderOptions(Compiler cppCompiler, String scope)
+    throws MojoExecutionException, MojoFailureException
+    {
+        for ( Iterator i = getNarManager().getNarDependencies( scope ).iterator(); i.hasNext(); )
+        {
+            NarArtifact narDependency = (NarArtifact) i.next();
+            String binding = narDependency.getNarInfo().getBinding(getAOL(), Library.STATIC);
+            getLog().debug( "Looking for " + narDependency + " found binding " + binding);
+            if (binding.equals(Library.PCH ) )
+            {
+                getLog().debug("Found pch dependency " + narDependency.getArtifactId());
+                File unpackDirectory = getUnpackDirectory();
+                File pchDir =
+                    getLayout().getLibDirectory(unpackDirectory, narDependency.getArtifactId(),
+                            narDependency.getVersion(), getAOL().toString(), binding);
+
+                File[] pchFiles = pchDir.listFiles(new FilenameFilter()
+                {
+                    public boolean accept(File dir, String name)
+                    {
+                        return name.endsWith(".pch");
+                    }
+                });
+                for(int index = 0; index < pchFiles.length; index++)
+                {
+                    String pchName = pchFiles[index].getName().replace(".pch", ".h");
+                    String absolutePchName = pchDir + File.separator +  pchName;
+                    addCompileOption(cppCompiler, "/Yu" + absolutePchName);
+                    addCompileOption(cppCompiler, "/FI" + absolutePchName); //force inclusion of pch file
+                    if(debug)
+                    {
+                        pchName = pchName.replace(".h", ".pdb");
+                        File pdbFile = new File(pchDir, pchName);
+                        if(pdbFile.exists())
+                            addCompileOption(cppCompiler, "/Fd" + pdbFile.getPath());
+                    }
+                }
+            }
+        }
+    }
+
+    protected void addCompileOption(Compiler compiler, String option)
+    {
+        getLog().debug("Added compile option " + option);
+        compiler.addOption(option);
+    }
+
+    protected void addPchObjFiles(LinkerDef linkerDefinition, String binding,
+            File libraryDirectory)
+    {
+        if(binding.equals(Library.PCH))
+        {
+            File[] objFiles = libraryDirectory.listFiles(new FilenameFilter()
+            {
+                public boolean accept(File dir, String name)
+                {
+                    return name.endsWith(".obj");
+                }
+            });
+            for(int index = 0; index < objFiles.length; index++)
+            {
+                getLog().debug("adding precomiled header obj file" + objFiles[index]);
+                LinkerArgument arg = new LinkerArgument();
+                arg.setValue(objFiles[index].getPath());
+                linkerDefinition.addConfiguredLinkerArg(arg);
+            }
+        }
     }
 }

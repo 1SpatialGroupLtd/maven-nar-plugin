@@ -245,40 +245,7 @@ public class NarCompileMojo
         }
 
         //Add precompiled header options
-        for ( Iterator i = getNarManager().getNarDependencies( "compile" ).iterator(); i.hasNext(); )
-        {
-            NarArtifact narDependency = (NarArtifact) i.next();
-            String binding = narDependency.getNarInfo().getBinding(getAOL(), Library.STATIC);
-            getLog().debug( "Looking for " + narDependency + " found binding " + binding);
-            if (binding.equals(Library.PCH ) )
-            {
-                getLog().debug("Found pch dependency " + narDependency.getArtifactId());
-                File unpackDirectory = getUnpackDirectory();
-                File pchDir =
-                    getLayout().getLibDirectory(unpackDirectory, narDependency.getArtifactId(),
-                            narDependency.getVersion(), getAOL().toString(), binding);
-
-                File[] pchFiles = pchDir.listFiles(new FilenameFilter()
-                {
-                    public boolean accept(File dir, String name)
-                    {
-                        return name.endsWith(".pch");
-                    }
-                });
-                for(int index = 0; index < pchFiles.length; index++)
-                {
-                    String pchName = pchFiles[index].getName();
-                    addCompileOption(cppCompiler, "/Yu" + pchName.replace(".pch", ".h"));
-                    addCompileOption(cppCompiler, "/Fp" + pchFiles[index].getPath());
-                    if(debug)
-                    {
-                        File pdbFile = new File(pchDir, pchName.replace(".pch", ".pdb"));
-                        if(pdbFile.exists())
-                            addCompileOption(cppCompiler, "/Fd" + pdbFile.getPath());
-                    }
-                }
-            }
-        }
+        addPrecompiledHeaderOptions(cppCompiler, "compile");
 
         // Darren Sargent Feb 11 2010: Use Compiler.MAIN for "type"...appears the wrong "type" variable was being used
         // since getCompiler() expects "main" or "test", whereas the "type" variable here is "executable", "shared" etc.
@@ -321,22 +288,12 @@ public class NarCompileMojo
             NarArtifact narDependency = (NarArtifact) i.next();
             String binding = narDependency.getNarInfo().getBinding(getAOL(), Library.STATIC);
             getLog().debug( "Looking for " + narDependency + " found binding " + binding);
-            if ( !binding.equals(Library.JNI ) )
+            if ( !binding.equals(Library.JNI ) && !binding.equals(Library.PCH) )
             {
                 File unpackDirectory = getUnpackDirectory();
-                File include;
-                if(binding.equals(Library.PCH))
-                {
-                    include =
-                        getLayout().getLibDirectory(unpackDirectory, narDependency.getArtifactId(),
-                            narDependency.getVersion(), getAOL().toString(), binding);
-                }
-                else
-                {
-                    include =
+                File include =
                         getLayout().getIncludeDirectory( unpackDirectory, narDependency.getArtifactId(),
                                                          narDependency.getVersion() );
-                }
 
                 getLog().debug( "Looking for include directory: " + include );
                 if ( include.exists() )
@@ -454,23 +411,7 @@ public class NarCompileMojo
                     }
 
                     //Add obj files for pre compiled headers to the linker
-                    if(binding.equals(Library.PCH))
-                    {
-                        File[] objFiles = dir.listFiles(new FilenameFilter()
-                        {
-                            public boolean accept(File dir, String name)
-                            {
-                                return name.endsWith(".obj");
-                            }
-                        });
-                        for(int index = 0; index < objFiles.length; index++)
-                        {
-                            getLog().debug("adding precomiled header obj file" + objFiles[index]);
-                            LinkerArgument arg = new LinkerArgument();
-                            arg.setValue(objFiles[index].getPath());
-                            linkerDefinition.addConfiguredLinkerArg(arg);
-                        }
-                    }
+                    addPchObjFiles(linkerDefinition, binding, dir);
                 }
             }
         }
@@ -515,11 +456,5 @@ public class NarCompileMojo
                             "MT.EXE failed with exit code: " + result);
             }
         }
-    }
-
-    private void addCompileOption(Compiler compiler, String option)
-    {
-        getLog().debug("Added compile option " + option);
-        compiler.addOption(option);
     }
 }
