@@ -630,9 +630,19 @@ public abstract class Compiler
         }
     }
 
-    public final List getDefines()
+    public final List getDefines() throws MojoFailureException, MojoExecutionException
     {
-        return defines == null ? new ArrayList() : defines;
+        List allDefines = new ArrayList();
+        String defaultDefines = NarProperties.getInstance(mojo.getMavenProject()).getProperty( getPrefix() + "defines" );
+        if ( defaultDefines != null )
+        {
+            String[] deafaultDefinesArray = (new CUtil.StringArrayBuilder( defaultDefines )).getValue();
+            for(int i = 0; i < deafaultDefinesArray.length; i++)
+                allDefines.add(deafaultDefinesArray[i]);
+        }
+        if(defines != null)
+            allDefines.addAll(defines);
+        return allDefines;
     }
 
     public void addOption(String option)

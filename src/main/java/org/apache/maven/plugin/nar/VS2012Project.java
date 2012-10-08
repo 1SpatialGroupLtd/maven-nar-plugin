@@ -1,7 +1,6 @@
 package org.apache.maven.plugin.nar;
 
 import java.io.File;
-import java.util.Set;
 import java.util.UUID;
 
 import org.apache.maven.plugin.MojoExecutionException;
@@ -35,33 +34,29 @@ public class VS2012Project
     public void createProjectFiles(ProjectInfo info) throws MojoExecutionException, MojoFailureException
     {
         info.setProjectDirectory(directory);
-        createProjectFile(info.getPprojectTemplate(), info.getBinding(), info.getIncludes(), info.getLibraryPaths(), info.getDefines(), info.getLibraryFiles(), info.getHeaderFiles(), info.getSourceFiles());
-        createFiltersFile(info.getHeaderFiles(), info.getSourceFiles());
-        createUserFile(info.getLibraryPaths());
+        createProjectFile(info);
+        createFiltersFile(info);
+        createUserFile(info);
     }
 
-    private void createProjectFile(String templateFile, String binding, Set includes, Set libraryPaths, Set defines, Set libraryFiles, Set headerFiles, Set sourceFiles) throws MojoExecutionException, MojoFailureException
+    private void createProjectFile(ProjectInfo info) throws MojoExecutionException, MojoFailureException
     {
         VisualStudioTemplateModifier modifier =
-            new VisualStudioProjectTemplateModifier(templateFile, projectFile,
-                    GUID, name, binding, includes, libraryPaths, defines,
-                    libraryFiles, headerFiles, sourceFiles);
+            new VisualStudioProjectTemplateModifier(info, projectFile, GUID, name);
         modifier.createPopulatedOutput();
     }
 
-    private void createFiltersFile(Set headerFiles, Set sourceFiles) throws MojoExecutionException, MojoFailureException
+    private void createFiltersFile(ProjectInfo info) throws MojoExecutionException, MojoFailureException
     {
         VisualStudioTemplateModifier modifier =
-            new VisualStudioFiltersTemplateModifier(VS2012_FILTERS_TEMPLATE, filtersFile,
-                    headerFiles, sourceFiles);
+            new VisualStudioFiltersTemplateModifier(VS2012_FILTERS_TEMPLATE, filtersFile, info);
         modifier.createPopulatedOutput();
     }
 
-    private void createUserFile(Set libraryPaths) throws MojoExecutionException, MojoFailureException
+    private void createUserFile(ProjectInfo info) throws MojoExecutionException, MojoFailureException
     {
         VisualStudioTemplateModifier modifier =
-            new VisualStudioUsersTemplateModifier(VS2012_USER_TEMPLATE, userFile,
-                    libraryPaths);
+            new VisualStudioUsersTemplateModifier(VS2012_USER_TEMPLATE, userFile, info);
         modifier.createPopulatedOutput();
     }
 

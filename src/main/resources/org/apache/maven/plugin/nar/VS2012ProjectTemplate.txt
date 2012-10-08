@@ -54,29 +54,46 @@
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
-      <PrecompiledHeader>
-      </PrecompiledHeader>
-      <WarningLevel>Level3</WarningLevel>
+      <PrecompiledHeader>[#usePreCompiledHeader#]</PrecompiledHeader>
+      <WarningLevel />
       <Optimization>Disabled</Optimization>
-      <PreprocessorDefinitions>_DEBUG;_WINDOWS;_USRDLL;[#upperCaseProjectName#]_EXPORTS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalOptions>[#defines#]%(AdditionalOptions)</AdditionalOptions>
+      <PreprocessorDefinitions>_DEBUG;_WINDOWS;_USRDLL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+      <TreatWarningAsError>true</TreatWarningAsError>
+      <MinimalRebuild />
+      <PrecompiledHeaderFile>[#preCompiledHeader.hDebug#]</PrecompiledHeaderFile>
+      <PrecompiledHeaderOutputFile />
+      <ProgramDataBaseFileName>[#preCompiledHeader.pdbDebug#]</ProgramDataBaseFileName>
+      <CallingConvention />
+      <RuntimeTypeInfo>true</RuntimeTypeInfo>
+      <AdditionalOptions>[#defines#] [#forcedIncludesDebug#]%(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>[#libraries#]%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>[#librariesDebug#]%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
+    <PreBuildEvent>
+      <Command>[#cleanPreCompiledHeaders#]</Command>
+    </PreBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <ClCompile>
-      <WarningLevel>Level3</WarningLevel>
-      <PrecompiledHeader>
-      </PrecompiledHeader>
+      <PrecompiledHeader>[#usePreCompiledHeader#]</PrecompiledHeader>
+      <WarningLevel />
       <Optimization>MaxSpeed</Optimization>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
-      <PreprocessorDefinitions>NDEBUG;_WINDOWS;_USRDLL;[#upperCaseProjectName#]_EXPORTS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalOptions>[#defines#]%(AdditionalOptions)</AdditionalOptions>
+      <PreprocessorDefinitions>NDEBUG;_WINDOWS;_USRDLL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+      <TreatWarningAsError>true</TreatWarningAsError>
+      <MinimalRebuild />
+      <PrecompiledHeaderFile>[#preCompiledHeader.h#]</PrecompiledHeaderFile>
+      <PrecompiledHeaderOutputFile />
+      <ProgramDataBaseFileName>[#preCompiledHeader.pdb#]</ProgramDataBaseFileName>
+      <CallingConvention />
+      <RuntimeTypeInfo>true</RuntimeTypeInfo>
+      <AdditionalOptions>[#defines#] [#forcedIncludes#]%(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -85,6 +102,9 @@
       <OptimizeReferences>true</OptimizeReferences>
       <AdditionalDependencies>[#libraries#]%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
+    <PreBuildEvent>
+      <Command>[#cleanPreCompiledHeaders#]</Command>
+    </PreBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
 [#headerFileElements#]

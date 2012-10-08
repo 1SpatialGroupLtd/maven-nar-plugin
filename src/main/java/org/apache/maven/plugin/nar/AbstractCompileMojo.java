@@ -24,8 +24,10 @@ import java.io.FilenameFilter;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Set;
 
 import net.sf.antcontrib.cpptasks.LinkerDef;
 import net.sf.antcontrib.cpptasks.types.LinkerArgument;
@@ -304,6 +306,19 @@ public abstract class AbstractCompileMojo
                 propertiesFile );
 
             narInfo.addLibrary(getAOL(), output);
+
+            Set pchNames = new HashSet();
+            //Add all the source files from pch libraries to a list
+            for(Iterator libraryIterator = libraries.iterator(); libraryIterator.hasNext();)
+                if(((Library)libraryIterator.next()).getType().equals(Library.PCH))
+                {
+                    //Only supported for C++
+                    List sources = getSourcesFor(getCpp());
+                    for(Iterator sourcesIterator = sources.iterator(); sourcesIterator.hasNext();)
+                        pchNames.add(((File)sourcesIterator.next()).getName());
+                }
+            //add this info to the narInfo
+            narInfo.setPchNames(getAOL(), pchNames);
 
             narInfo.setTargetWinRT(getAOL(), isTargetWinRT());
         }

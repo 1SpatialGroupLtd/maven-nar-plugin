@@ -20,10 +20,18 @@ public interface NarVisualStudioSetupTags
 	public static final String LIBRARY_TYPE = "[#libraryType#]";
 	public static final String INCLUDES = "[#includes#]";
 	public static final String LIBRARY_PATHS = "[#libraryPaths#]";
-	public static final String UPPER_CASE_PROJECT_NAME = "[#upperCaseProjectName#]";
 	public static final String DEFINES = "[#defines#]";
 	public static final String LIBRARIES = "[#libraries#]";
+	public static final String LIBRARIES_DEBUG = "[#librariesDebug#]";
 	public static final String HEADER_FILE_ELEMENTS = "[#headerFileElements#]";
 	public static final String SOURCE_FILE_ELEMENTS = "[#sourceFileElements#]";
 	public static final String NEW_GUID = "[#newGUID#]";
+	public static final String USE_PRE_COMPILED_HEADERS = "[#usePreCompiledHeader#]";
+	public static final String CLEAN_PRE_COMPILED_HEADERS = "[#cleanPreCompiledHeaders#]";
+	public static final String PRE_COMPILED_HEADER_H = "[#preCompiledHeader.h#]";
+	public static final String PRE_COMPILED_HEADER_PDB = "[#preCompiledHeader.pdb#]";
+	public static final String FORCED_INCLUDES = "[#forcedIncludes#]";
+	public static final String PRE_COMPILED_HEADER_H_DEBUG = "[#preCompiledHeader.hDebug#]";
+	public static final String PRE_COMPILED_HEADER_PDB_DEBUG = "[#preCompiledHeader.pdbDebug#]";
+	public static final String FORCED_INCLUDES_DEBUG = "[#forcedIncludesDebug#]";
 }

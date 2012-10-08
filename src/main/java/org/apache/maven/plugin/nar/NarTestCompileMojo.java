@@ -175,7 +175,6 @@ public class NarTestCompileMojo
         task.addConfiguredLinker( linkerDefinition );
 
         // FIXME hardcoded values
-        String libName = getFinalName();
         File includeDir =
             getLayout().getIncludeDirectory( getTargetDirectory(), getMavenProject().getArtifactId(),
                                              getMavenProject().getVersion() );

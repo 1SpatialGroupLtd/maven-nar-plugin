@@ -1,31 +1,27 @@
 package org.apache.maven.plugin.nar;
 
 import java.io.File;
-import java.util.Set;
-
 import org.apache.maven.plugin.MojoExecutionException;
 
 public class VisualStudioUsersTemplateModifier extends
-		VisualStudioTemplateModifier {
+        VisualStudioTemplateModifier {
 
-	private Set libraryPaths;
+    private ProjectInfo info;
 
-	public VisualStudioUsersTemplateModifier(String templateFileName, File destinationFile,
-			Set libraryPaths)
-	{
-		super(templateFileName, destinationFile);
-		this.libraryPaths = libraryPaths;
-	}
+    public VisualStudioUsersTemplateModifier(String templateFile, File destinationFile, ProjectInfo info)
+    {
+        super(templateFile, destinationFile);
+        this.info = info;
+    }
 
-	protected String replacePlaceholders(String contents)
-			throws MojoExecutionException
-	{
-		return replace(contents, LIBRARY_PATHS, getLibraryPathsAsString());
-	}
+    protected String replacePlaceholders(String contents)
+            throws MojoExecutionException
+    {
+        return replace(contents, LIBRARY_PATHS, getLibraryPathsAsString());
+    }
 
-	private String getLibraryPathsAsString()
-	{
-		return convertToString(libraryPaths, ";");
-	}
-
+    private String getLibraryPathsAsString() throws MojoExecutionException
+    {
+        return convertToString(info.getLibraryPaths(), ";");
+    }
 }

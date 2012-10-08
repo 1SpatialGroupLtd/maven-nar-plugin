@@ -68,11 +68,12 @@ public class NarVisualStudioSetupMojo extends AbstractCompileMojo {
     private void initProjectInfos() throws MojoExecutionException,
             MojoFailureException
     {
-        mainProjectInfo = buildProjectInfo(VS2012_PROJECT_TEMPLATE, getBinding(), getDefines(), getDependencies(), getUnpackDirectory(), getCpp().getIncludePaths("main"), getSourcesFor(getCpp()));
+        Set defines = getDefines();
+        mainProjectInfo = buildProjectInfo(VS2012_PROJECT_TEMPLATE, getBinding(), defines, getDependencies(), getUnpackDirectory(), getCpp().getIncludePaths("main"), getSourcesFor(getCpp()));
 
-        testProjectInfo = buildProjectInfo(VS2012_TEST_PROJECT_TEMPLATE, Library.EXECUTABLE, emptySet, getTestDependencies(), getTestUnpackDirectory(), getCpp().getIncludePaths("test"), getTestSourcesFor(getCpp()));;
+        testProjectInfo = buildProjectInfo(VS2012_TEST_PROJECT_TEMPLATE, Library.EXECUTABLE, defines, getTestDependencies(), getTestUnpackDirectory(), getCpp().getIncludePaths("test"), getTestSourcesFor(getCpp()));;
 
-        dependencyProjectInfo = new ProjectInfo(VS2012_TEST_PROJECT_TEMPLATE, Library.SHARED, emptySet, emptySet, emptySet, emptySet, getFilesByExtension(getDirectIncludes(), ".h"), emptySet);
+        dependencyProjectInfo = new ProjectInfo(VS2012_TEST_PROJECT_TEMPLATE, Library.SHARED, emptySet, emptySet, emptySet, emptySet, getFilesByExtension(getDirectIncludes(), ".h"), emptySet, new PchInfo());
     }
 
     private ProjectInfo buildProjectInfo(String template, String binding, Set defines, List dependencies, File unpackDirectory, List headerLocations, List sourceFiles) throws MojoExecutionException, MojoFailureException
@@ -85,7 +86,39 @@ public class NarVisualStudioSetupMojo extends AbstractCompileMojo {
                 libraryPaths,
                 getLibraryFilePaths(libraryPaths),
                 getHeaderFilePaths(headerLocations),
-                getSourceFilePaths(sourceFiles));
+                getSourceFilePaths(sourceFiles),
+                getPchInfo());
+    }
+
+    private PchInfo getPchInfo() throws MojoExecutionException, MojoFailureException
+    {
+        List dependencies = getNarManager().getNarDependencies(Artifact.SCOPE_COMPILE);
+        PchInfo retVal = new PchInfo();
+        for(Iterator i = dependencies.iterator(); i.hasNext();)
+        {
+            NarArtifact dependency = (NarArtifact) i.next();
+            NarInfo narInfo = dependency.getNarInfo();
+            String binding = narInfo.getBinding(getAOL(), "");
+            //I believe there should only be one pch.
+            //Certainly VS2012 only supports one so just use the first
+            if(binding.equals(Library.PCH))
+            {
+                File pchDirectory =  getLayout().getLibDirectory(getUnpackDirectory(), dependency.getArtifactId(),
+                        dependency.getVersion(), getAOL().toString(), binding);
+                pchDirectory = pchDirectory.getParentFile(); //This takes us above the debug/release split, we will need both
+                getLog().debug("Found pre compiled header in " + pchDirectory);
+                retVal.directory = pchDirectory;
+                retVal.usePch = true;
+                retVal.artifactId = dependency.getArtifactId();
+                String pchNames = narInfo.getPchNames(getAOL());
+                //VS2012 only supports a single pre compiled header.
+                if(pchNames.contains(","))
+                    retVal.pchName = pchNames.substring(0, pchNames.indexOf(","));
+                else
+                    retVal.pchName = pchNames;
+            }
+        }
+        return retVal;
     }
 
     private List getDependencies() throws MojoExecutionException, MojoFailureException
@@ -172,7 +205,7 @@ public class NarVisualStudioSetupMojo extends AbstractCompileMojo {
         return getIncludesFromDependencies(dependencies, getUnpackDirectory());
     }
 
-    private Set getDefines()
+    private Set getDefines() throws MojoFailureException, MojoExecutionException
     {
         Set defines = new HashSet();
         defines.addAll(getCpp().getDefines());
@@ -314,5 +347,13 @@ public class NarVisualStudioSetupMojo extends AbstractCompileMojo {
         {
             return name.endsWith(extension);
         }
+    }
+
+    public class PchInfo
+    {
+        public String artifactId;
+        public File directory;
+        public boolean usePch = false;
+        public String pchName;
     }
 }

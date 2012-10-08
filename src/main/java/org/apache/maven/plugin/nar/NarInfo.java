@@ -26,6 +26,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.Iterator;
 import java.util.Properties;
+import java.util.Set;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
 
@@ -43,6 +44,8 @@ public class NarInfo
     private static final String LIBS_NAMES = "libs.names";
 
     public static final String NAR_PROPERTIES = "nar.properties";
+
+    private static final String PCH_NAMES = "pch.names";
 
     private String groupId, artifactId, version;
 
@@ -227,7 +230,7 @@ public class NarInfo
         return new File( getProperty( aol, key, defaultValue.getPath() ) );
     }
 
-    public void addLibrary(AOL aol, String libName)
+    public final void addLibrary(AOL aol, String libName)
     {
         String currentLibs = getLibs( aol );
         //I couldn't get a currentLibs.matches() to pick up libName without a trailing hyphen, so had to do it the longwinded way.
@@ -245,13 +248,34 @@ public class NarInfo
             setProperty( aol, LIBS_NAMES, currentLibs + ", " + libName );
     }
 
-    public void setTargetWinRT(AOL aol, boolean targetWinRT)
+    public final void setTargetWinRT(AOL aol, boolean targetWinRT)
     {
         setProperty(aol, LIBS_WINRT, Boolean.toString(targetWinRT));
     }
 
-    public boolean isTargetWinRT(AOL aol)
+    public final boolean isTargetWinRT(AOL aol)
     {
         return getProperty(aol, LIBS_WINRT, false);
+    }
+
+    public final void setPchNames(AOL aol, Set pchNames)
+    {
+        if(pchNames.isEmpty())
+            return;
+        StringBuilder builder = new StringBuilder();
+        for(Iterator it = pchNames.iterator(); it.hasNext();)
+        {
+            if(builder.length() != 0)
+                builder.append(", ");
+            String pchName = (String)it.next();
+            int extensionIndex = pchName.lastIndexOf(".");
+            builder.append(pchName.substring(0, extensionIndex));
+        }
+        setProperty(aol, PCH_NAMES, builder.toString());
+    }
+
+    public final String getPchNames(AOL aol)
+    {
+        return getProperty(aol, PCH_NAMES, "");
     }
 }
