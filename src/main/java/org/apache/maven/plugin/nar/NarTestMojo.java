@@ -46,7 +46,7 @@ public class NarTestMojo
 {
     /**
      * The classpath elements of the project being tested.
-     * 
+     *
      * @parameter expression="${project.testClasspathElements}"
      * @required
      * @readonly
@@ -84,7 +84,7 @@ public class NarTestMojo
                 getLog().warn( "Skipping non-existing test " + path );
                 return;
             }
-            
+
             File workingDir = new File( getTestTargetDirectory(), "test-reports" );
             workingDir.mkdirs();
             getLog().info( "Running test " + name + " in " + workingDir );
@@ -110,7 +110,7 @@ public class NarTestMojo
             // FIXME NAR-90, we could make sure we get the final name from layout
             String extension = getOS().equals( OS.WINDOWS ) ? ".exe" : "";
             File executable =
-                new File( getLayout().getBinDirectory( getTargetDirectory(), getMavenProject().getArtifactId(),
+                new File( getLayout().getBinDirectory( getTestTargetDirectory(), getMavenProject().getArtifactId(),
                                                        getMavenProject().getVersion(), getAOL().toString() ),
                           project.getArtifactId() + extension );
             if ( !executable.exists() )
@@ -145,7 +145,7 @@ public class NarTestMojo
             if ( lib.getType().equals( Library.SHARED ) )
             {
                 File path =
-                    getLayout().getLibDirectory( getTargetDirectory(), getMavenProject().getArtifactId(),
+                    getLayout().getLibDirectory( getTestTargetDirectory(), getMavenProject().getArtifactId(),
                                                  getMavenProject().getVersion(), getAOL().toString(), lib.getType() );
                 getLog().debug( "Adding path to shared library: " + path );
                 sharedPaths.add( path );
@@ -154,22 +154,27 @@ public class NarTestMojo
 
         // add dependent shared libraries
         String classifier = getAOL() + "-shared";
-        List narArtifacts = getNarManager().getNarDependencies( "compile" );
+        List narArtifacts = getNarManager().getNarDependencies( "test" );
         List dependencies = getNarManager().getAttachedNarDependencies( narArtifacts, classifier );
         for ( Iterator d = dependencies.iterator(); d.hasNext(); )
         {
             Artifact dependency = (Artifact) d.next();
-            getLog().debug( "Looking for dependency " + dependency );
 
-            // FIXME reported to maven developer list, isSnapshot
-            // changes behaviour
-            // of getBaseVersion, called in pathOf.
-            dependency.isSnapshot();
+            if (!getTestExcludeDependencies().contains(dependency.getArtifactId()))
+            {
+                getLog().debug("Looking for dependency " + dependency);
 
-            File libDirectory =
-                getLayout().getLibDirectory( getUnpackDirectory(), dependency.getArtifactId(), dependency.getVersion(),
-                                             getAOL().toString(), Library.SHARED );
-            sharedPaths.add( libDirectory );
+                // FIXME reported to maven developer list, isSnapshot
+                // changes behaviour
+                // of getBaseVersion, called in pathOf.
+                dependency.isSnapshot();
+
+                File libDirectory = getLayout().getLibDirectory(
+                        getTestUnpackDirectory(), dependency.getArtifactId(),
+                        dependency.getVersion(), getAOL().toString(),
+                        Library.SHARED);
+                sharedPaths.add(libDirectory);
+            }
         }
 
         // set environment

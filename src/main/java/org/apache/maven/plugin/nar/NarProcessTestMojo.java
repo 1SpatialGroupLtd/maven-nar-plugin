@@ -1,0 +1,384 @@
+package org.apache.maven.plugin.nar;
+
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *  http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
+import java.io.File;
+import java.io.IOException;
+import java.util.Iterator;
+import java.util.LinkedList;
+import java.util.List;
+
+import net.sf.antcontrib.cpptasks.CCTask;
+import net.sf.antcontrib.cpptasks.CUtil;
+import net.sf.antcontrib.cpptasks.LinkerDef;
+import net.sf.antcontrib.cpptasks.OutputTypeEnum;
+import net.sf.antcontrib.cpptasks.RuntimeType;
+import net.sf.antcontrib.cpptasks.SubsystemEnum;
+import net.sf.antcontrib.cpptasks.types.LibrarySet;
+import net.sf.antcontrib.cpptasks.types.LinkerArgument;
+import net.sf.antcontrib.cpptasks.types.SystemLibrarySet;
+
+import org.apache.maven.plugin.MojoExecutionException;
+import org.apache.maven.plugin.MojoFailureException;
+import org.apache.tools.ant.BuildException;
+import org.apache.tools.ant.Project;
+
+/**
+ * Compiles native source files.
+ *
+ * @goal nar-processTestResources
+ * @phase process-test-resources
+ * @requiresSession
+ * @requiresProject
+ * @requiresDependencyResolution test
+ * @author Mark Donszelmann
+ */
+public class NarProcessTestMojo
+    extends AbstractCompileMojo
+{
+
+    public final void narExecute()
+        throws MojoExecutionException, MojoFailureException
+    {
+
+        // make sure destination is there
+        getTestTargetDirectory().mkdirs();
+
+        // check for source files
+        int noOfSources = 0;
+        noOfSources += getSourcesFor(getCpp()).size();
+        noOfSources += getSourcesFor(getC()).size();
+        noOfSources += getSourcesFor(getFortran()).size();
+        if ( noOfSources > 0 )
+        {
+            getLog().info( "Preparing to link " + noOfSources + " files" );
+            for ( Iterator i = getLibraries().iterator(); i.hasNext(); )
+            {
+                createLibrary(getAntProject(), (Library) i.next());
+            }
+        }
+        else
+        {
+            getLog().info( "Nothing to link" );
+        }
+
+        try
+        {
+            //if we only contain pch libraries we don't want to copy the headers
+            boolean copyHeaders = false;
+            for ( Iterator i = getLibraries().iterator(); i.hasNext(); )
+                if(!((Library) i.next()).getType().equals(Library.PCH))
+                {
+                    copyHeaders = true;
+                    break;
+                }
+
+            // FIXME, should the include paths be defined at a higher level ?
+            if(copyHeaders)
+            {
+                getCpp().copyIncludeFiles(getMavenProject(),
+                                       getLayout().getIncludeDirectory( getTestTargetDirectory(),
+                                                                        getMavenProject().getArtifactId(),
+                                                                        getMavenProject().getVersion() ) );
+            }
+        }
+        catch ( IOException e )
+        {
+            throw new MojoExecutionException( "NAR: could not copy include files", e );
+        }
+    }
+
+    private void createLibrary(Project antProject, Library library)
+        throws MojoExecutionException, MojoFailureException
+    {
+        getLog().debug( "Creating Library " + library );
+        // configure task
+        CCTask task = new CCTask();
+        task.setProject(antProject);
+
+        // subsystem
+        SubsystemEnum subSystem = new SubsystemEnum();
+        subSystem.setValue( library.getSubSystem() );
+        task.setSubsystem( subSystem );
+
+        // set max cores
+        task.setMaxCores(getMaxCores(getAOL()));
+
+        // outtype
+        String type = library.getType();
+
+        if(!type.equals(Library.PCH)) //we only need this if we are linking
+        {
+            OutputTypeEnum outTypeEnum = new OutputTypeEnum();
+            outTypeEnum.setValue(type);
+            task.setOuttype(outTypeEnum);
+        }
+
+        // outDir
+        File outDir;
+        if ( type.equals( Library.EXECUTABLE ) )
+        {
+            outDir =
+                getLayout().getBinDirectory( getTestTargetDirectory(), getMavenProject().getArtifactId(),
+                                             getMavenProject().getVersion(), getAOL().toString() );
+        }
+        else
+        {
+            outDir =
+                getLayout().getLibDirectory( getTestTargetDirectory(), getMavenProject().getArtifactId(),
+                                             getMavenProject().getVersion(), getAOL().toString(), type );
+        }
+        outDir.mkdirs();
+
+        // outFile
+        // FIXME NAR-90 we could get the final name from layout
+        File outFile;
+        if ( type.equals( Library.EXECUTABLE ) )
+        {
+            // executable has no version number
+            outFile = new File(outDir, getMavenProject().getArtifactId());
+        }
+        else if(type.equals(Library.PCH))
+        {
+            outFile = null; //This stops us linking
+        }
+        else
+        {
+            outFile = new File(outDir, getOutput(getAOL()));
+        }
+
+        if(outFile != null)
+            getLog().debug("NAR - output: '" + outFile + "'");
+        else
+            getLog().debug("NAR - no output; not linking");
+
+        task.setOutfile(outFile);
+
+        // object directory
+        if(type.equals(Library.PCH))
+        {
+            task.setObjdir(outDir); //we want the pch as the output
+        }
+        else
+        {
+            File objDir = new File(getTestTargetDirectory(), "source_obj");
+            objDir = new File(objDir, getAOL().toString());
+            objDir.mkdirs();
+            task.setObjdir(objDir);
+        }
+
+        // failOnError, libtool
+        task.setFailonerror(failOnError(getAOL()));
+        task.setLibtool(useLibtool(getAOL()));
+
+        // runtime
+        RuntimeType runtimeType = new RuntimeType();
+        runtimeType.setValue(getRuntime(getAOL()));
+        task.setRuntime(runtimeType);
+
+        // add dependency include paths
+        for ( Iterator i = getNarManager().getNarDependencies( "test" ).iterator(); i.hasNext(); )
+        {
+            // FIXME, handle multiple includes from one NAR
+            NarArtifact narDependency = (NarArtifact) i.next();
+
+            if (!getTestExcludeDependencies().contains(narDependency.getArtifactId())) 
+            {
+
+                String binding = narDependency.getNarInfo().getBinding(getAOL(), Library.STATIC);
+                getLog().debug("Looking for " + narDependency + " found binding "+ binding);
+                if (!binding.equals(Library.JNI) && !binding.equals(Library.PCH)) {
+                    File unpackDirectory = getTestUnpackDirectory();
+                    File include = getLayout().getIncludeDirectory(unpackDirectory, narDependency.getArtifactId(), narDependency.getVersion());
+
+                    getLog().debug("Looking for include directory: " + include);
+                    if (include.exists()) {
+                        task.createIncludePath().setPath(include.getPath());
+                    } else {
+                        throw new MojoExecutionException("NAR: unable to locate include path: " + include);
+                    }
+                }
+            }
+        }
+
+        // add linker
+        LinkerDef linkerDefinition = getLinker().getLinker( this, antProject, getOS(), getAOL().getKey() + ".linker.", type );
+        task.addConfiguredLinker(linkerDefinition);
+
+        // add dependency libraries
+        // FIXME: what about PLUGIN and STATIC, depending on STATIC, should we
+        // not add all libraries, see NARPLUGIN-96
+        if ( type.equals( Library.SHARED ) || type.equals( Library.JNI ) || type.equals( Library.EXECUTABLE ) )
+        {
+
+            List depLibOrder = getDependencyLibOrder();
+            List depLibs = getNarManager().getNarDependencies("test");
+
+            // reorder the libraries that come from the nar dependencies
+            // to comply with the order specified by the user
+            if ( ( depLibOrder != null ) && !depLibOrder.isEmpty() )
+            {
+                List tmp = new LinkedList();
+
+                for ( Iterator i = depLibOrder.iterator(); i.hasNext(); )
+                {
+                    String depToOrderName = (String) i.next();
+
+                    for ( Iterator j = depLibs.iterator(); j.hasNext(); )
+                    {
+                        NarArtifact dep = (NarArtifact) j.next();
+                        String depName = dep.getGroupId() + ":" + dep.getArtifactId();
+
+                        if (depName.equals(depToOrderName))
+                        {
+                            tmp.add(dep);
+                            j.remove();
+                        }
+                    }
+                }
+
+                tmp.addAll(depLibs);
+                depLibs = tmp;
+            }
+
+            for (Iterator i = depLibs.iterator(); i.hasNext();) 
+            {
+                NarArtifact dependency = (NarArtifact) i.next();
+
+                if (!getTestExcludeDependencies().contains(dependency.getArtifactId())) 
+                {
+
+                    // FIXME no handling of "local"
+
+                    // FIXME, no way to override this at this stage
+                    String binding = dependency.getNarInfo().getBinding(getAOL(), Library.NONE);
+                    getLog().debug("Using Binding: " + binding);
+                    AOL aol = getAOL();
+                    aol = dependency.getNarInfo().getAOL(getAOL());
+                    getLog().debug("Using Library AOL: " + aol.toString());
+
+                    if (!binding.equals(Library.JNI) && !binding.equals(Library.NONE) && !binding.equals(Library.EXECUTABLE)) 
+                    {
+                        File unpackDirectory = getTestUnpackDirectory();
+
+                        File dir = getLayout().getLibDirectory(unpackDirectory, dependency.getArtifactId(),
+                                dependency.getVersion(), aol.toString(), binding);
+
+                        getLog().debug("Looking for Library Directory: " + dir);
+                        if (dir.exists()) {
+                            LibrarySet libSet = new LibrarySet();
+                            libSet.setProject(antProject);
+
+                            // FIXME, no way to override
+                            String libs = dependency.getNarInfo().getLibs(getAOL());
+                            if ((libs != null) && !libs.equals("")) 
+                            {
+                                getLog().debug("Using LIBS = " + libs);
+                                libSet.setLibs(new CUtil.StringArrayBuilder(libs));
+                                libSet.setDir(dir);
+                                task.addLibset(libSet);
+                            }
+                        }
+                        else 
+                        {
+                            getLog().debug("Library Directory " + dir + " does NOT exist.");
+                        }
+
+                        // FIXME, look again at this, for multiple dependencies
+                        // we may need to remove duplicates
+                        String options = dependency.getNarInfo().getOptions(getAOL());
+                        if ((options != null) && !options.equals("")) 
+                        {
+                            getLog().debug("Using OPTIONS = " + options);
+                            LinkerArgument arg = new LinkerArgument();
+                            arg.setValue(options);
+                            linkerDefinition.addConfiguredLinkerArg(arg);
+                        }
+
+                        String sysLibs = dependency.getNarInfo().getSysLibs(getAOL());
+                        if ((sysLibs != null) && !sysLibs.equals("")) 
+                        {
+                            getLog().debug("Using SYSLIBS = " + sysLibs);
+                            SystemLibrarySet sysLibSet = new SystemLibrarySet();
+                            sysLibSet.setProject(antProject);
+
+                            sysLibSet.setLibs(new CUtil.StringArrayBuilder(sysLibs));
+                            task.addSyslibset(sysLibSet);
+                        }
+                        
+                        //Add obj files for pre compiled headers to the linker
+                        addPchObjFiles(linkerDefinition, binding, dir);
+                    }
+                }
+            }
+        }
+
+        // Add obj files to the linker
+        File sourceObjectDir = new File(getTargetDirectory(), "obj");
+        sourceObjectDir = new File(sourceObjectDir, getAOL().toString());
+
+        if (sourceObjectDir.exists())
+        {
+            getLog().debug( "Adding files from Library Directory " + sourceObjectDir);
+            addObjFiles(linkerDefinition, sourceObjectDir);
+        }
+        else
+        {
+            getLog().debug( "Library Directory " + sourceObjectDir + " does NOT exist." );
+        }
+
+        // Add JVM to linker
+        getJava().addRuntime( task, getJavaHome( getAOL() ), getOS(), getAOL().getKey() + ".java." );
+
+        // execute
+        try
+        {
+            task.execute();
+        }
+        catch ( BuildException e )
+        {
+            throw new MojoExecutionException("NAR: Process-Test-Resources failed", e);
+        }
+
+        // FIXME, this should be done in CPPTasks at some point
+        if ( getRuntime( getAOL() ).equals( "dynamic" ) && getOS().equals( OS.WINDOWS )
+            && getLinker().getName( null, null ).equals( "msvc" ) && !getLinker().getVersion().startsWith( "6." ) )
+        {
+            String libType = library.getType();
+            if ( libType.equals( Library.JNI ) || libType.equals( Library.SHARED ) )
+            {
+                String dll = outFile.getPath() + ".dll";
+                String manifest = dll + ".manifest";
+                int result =
+                    NarUtil.runCommand( "mt.exe", new String[] { "/manifest", manifest, "/outputresource:" + dll + ";#2" }, null, null, getLog() );
+                if (result != 0)
+                {
+                    throw new MojoFailureException("MT.EXE failed with exit code: " + result);
+                }
+            } else if (libType.equals(Library.EXECUTABLE)) {
+                String exe = outFile.getPath() + ".exe";
+                String manifest = exe + ".manifest";
+                int result = NarUtil.runCommand("mt.exe", new String[] { "/manifest", manifest, "/outputresource:" + exe + ";#1" }, null, null, getLog());
+                if (result != 0)
+                    throw new MojoFailureException("MT.EXE failed with exit code: " + result);
+            }
+        }
+    }
+}

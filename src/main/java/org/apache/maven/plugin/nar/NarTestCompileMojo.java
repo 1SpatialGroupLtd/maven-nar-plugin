@@ -148,18 +148,19 @@ public class NarTestCompileMojo
         {
             Artifact artifact = (Artifact) i.next();
 
-            // check if it exists in the normal unpack directory
-            File include =
-                getLayout().getIncludeDirectory( getUnpackDirectory(), artifact.getArtifactId(), artifact.getVersion() );
-            if ( !include.exists() )
+            if (!getTestExcludeDependencies().contains(artifact.getArtifactId()))
             {
-                // otherwise try the test unpack directory
-                include =
-                    getLayout().getIncludeDirectory( getTestUnpackDirectory(), artifact.getArtifactId(), artifact.getVersion() );
-            }
-            if ( include.exists() )
-            {
-                task.createIncludePath().setPath( include.getPath() );
+
+                // check if it exists in the normal unpack directory
+                File include =
+                    getLayout().getIncludeDirectory(getUnpackDirectory(), artifact.getArtifactId(), artifact.getVersion());
+                if (!include.exists()) {
+                    // otherwise try the test unpack directory
+                    include = getLayout().getIncludeDirectory(getTestUnpackDirectory(), artifact.getArtifactId(), artifact.getVersion());
+                }
+                if (include.exists()) {
+                    task.createIncludePath().setPath(include.getPath());
+                }
             }
         }
 
@@ -176,11 +177,11 @@ public class NarTestCompileMojo
 
         // FIXME hardcoded values
         File includeDir =
-            getLayout().getIncludeDirectory( getTargetDirectory(), getMavenProject().getArtifactId(),
+            getLayout().getIncludeDirectory( getTestTargetDirectory(), getMavenProject().getArtifactId(),
                                              getMavenProject().getVersion() );
 
         File libDir =
-            getLayout().getLibDirectory( getTargetDirectory(), getMavenProject().getArtifactId(),
+            getLayout().getLibDirectory( getTestTargetDirectory(), getMavenProject().getArtifactId(),
                                          getMavenProject().getVersion(), getAOL().toString(), test.getLink() );
 
         // copy shared library

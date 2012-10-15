@@ -81,6 +81,13 @@ public abstract class AbstractCompileMojo
     private String output;
 
     /**
+     * List of artifact ids for dependencies to be excluded during test phases.
+     *
+     * @parameter expression=""
+     */
+    private List testExcludeDependencies;
+
+    /**
      * Fail on compilation/linking error.
      *
      * @parameter expression="" default-value="true"
@@ -217,6 +224,16 @@ public abstract class AbstractCompileMojo
         throws MojoExecutionException, MojoFailureException
     {
         return getNarInfo().getProperty( aol, "output", output );
+    }
+
+    protected final List getTestExcludeDependencies()
+            throws MojoExecutionException, MojoFailureException
+    {
+        if ( testExcludeDependencies == null )
+        {
+            testExcludeDependencies = Collections.EMPTY_LIST;
+        }
+        return testExcludeDependencies;
     }
 
     protected final File getJavaHome( AOL aol )
@@ -463,20 +480,26 @@ public abstract class AbstractCompileMojo
     {
         if(binding.equals(Library.PCH))
         {
-            File[] objFiles = libraryDirectory.listFiles(new FilenameFilter()
+            getLog().debug("adding precomiled header obj file");
+            addObjFiles(linkerDefinition, libraryDirectory);
+        }
+    }
+
+    protected void addObjFiles(LinkerDef linkerDefinition, File libraryDirectory)
+    {
+        File[] objFiles = libraryDirectory.listFiles(new FilenameFilter()
+        {
+            public boolean accept(File dir, String name)
             {
-                public boolean accept(File dir, String name)
-                {
-                    return name.endsWith(".obj");
-                }
-            });
-            for(int index = 0; index < objFiles.length; index++)
-            {
-                getLog().debug("adding precomiled header obj file" + objFiles[index]);
-                LinkerArgument arg = new LinkerArgument();
-                arg.setValue(objFiles[index].getPath());
-                linkerDefinition.addConfiguredLinkerArg(arg);
+                return name.endsWith(".obj");
             }
+        });
+        for(int index = 0; index < objFiles.length; index++)
+        {
+            getLog().debug("adding obj file" + objFiles[index]);
+            LinkerArgument arg = new LinkerArgument();
+            arg.setValue(objFiles[index].getPath());
+            linkerDefinition.addConfiguredLinkerArg(arg);
         }
     }
 }

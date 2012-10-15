@@ -48,8 +48,7 @@
           <generate-test-sources>com.onespatial:maven-nar-plugin:nar-testDownload</generate-test-sources>
           <process-test-sources>com.onespatial:maven-nar-plugin:nar-testUnpack</process-test-sources>
           <generate-test-resources></generate-test-resources>
-          <process-test-resources>org.apache.maven.plugins:maven-resources-plugin:testResources
-          </process-test-resources>
+          <process-test-resources>org.apache.maven.plugins:maven-resources-plugin:testResources,             com.onespatial:maven-nar-plugin:nar-processTestResources</process-test-resources>
           <test-compile>org.apache.maven.plugins:maven-compiler-plugin:testCompile
           </test-compile>
           <process-test-classes>com.onespatial:maven-nar-plugin:nar-testCompile
