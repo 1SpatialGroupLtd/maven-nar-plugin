@@ -44,16 +44,25 @@ public class NarTestUnpackMojo
     {
         NarManager mgr = getNarManager();
         List narArtifacts = mgr.getNarDependencies( "test" );
+        for ( Iterator i = narArtifacts.iterator(); i.hasNext(); )
+        {
+            NarArtifact narDependency = (NarArtifact) i.next();
+            if (getTestExcludeDependencies().contains(narDependency.getArtifactId()))
+            {
+                getLog().debug("Excluding: " + narDependency.getArtifactId());
+                narArtifacts.remove(narDependency);
+            }
+        }
         if ( classifiers == null )
         {
-            mgr.unpackAttachedNars( narArtifacts, archiverManager, null, getOS(), getLayout(), getTestUnpackDirectory() );
+        	mgr.unpackAttachedNars( narArtifacts, archiverManager, null, getOS(), getLayout(), getTestUnpackDirectory() );
         }
         else
         {
-            for ( Iterator j = classifiers.iterator(); j.hasNext(); )
-            {
-                mgr.unpackAttachedNars( narArtifacts, archiverManager, (String) j.next(), getOS(), getLayout(), getTestUnpackDirectory() );
-            }
+        	for ( Iterator j = classifiers.iterator(); j.hasNext(); )
+        	{
+        		mgr.unpackAttachedNars( narArtifacts, archiverManager, (String) j.next(), getOS(), getLayout(), getTestUnpackDirectory() );
+        	}
         }
     }
 }

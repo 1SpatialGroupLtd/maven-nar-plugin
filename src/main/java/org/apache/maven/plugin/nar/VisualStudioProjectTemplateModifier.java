@@ -53,12 +53,12 @@ public class VisualStudioProjectTemplateModifier extends
 
     private String getCleanPreCompiledHeadersCommand() throws MojoExecutionException
     {
+    	StringBuilder builder = new StringBuilder();
         if(info.usePch())
         {
-            StringBuilder builder = new StringBuilder();
             builder.append("rmdir /Q/S " + info.getPchBaseDirectory() + "\r\n");
             builder.append("cd ..\\..\\\r\n");
-            builder.append("mvn nar:nar-unpack");
+            builder.append("mvn nar:nar-unpack nar:nar-testUnpack");
             return builder.toString();
         }
         return "";

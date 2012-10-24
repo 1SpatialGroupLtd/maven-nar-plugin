@@ -23,7 +23,6 @@ import java.io.File;
 
 import net.sf.antcontrib.cpptasks.CCTask;
 import net.sf.antcontrib.cpptasks.LinkerDef;
-
 import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.plugin.MojoFailureException;
 
@@ -35,7 +34,7 @@ import org.apache.maven.plugin.MojoFailureException;
  * @requiresSession
  * @requiresProject
  * @requiresDependencyResolution test
- * @author Mark Donszelmann
+ * @author Mathew Pannell
  */
 public class NarProcessTestMojo
     extends NarCompileMojo

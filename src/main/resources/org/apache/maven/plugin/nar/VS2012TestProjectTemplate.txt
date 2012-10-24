@@ -44,12 +44,12 @@
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <LinkIncremental>true</LinkIncremental>
-    <IncludePath>[#includes#]$(IncludePath)</IncludePath>
+    <IncludePath>[#includes#]..\..\external-sources;..\..\external-sources\include;$(IncludePath)</IncludePath>
     <LibraryPath>[#libraryPaths#]$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <LinkIncremental>false</LinkIncremental>
-    <IncludePath>[#includes#]$(IncludePath)</IncludePath>
+    <IncludePath>[#includes#]..\..\external-sources;..\..\external-sources\include;$(IncludePath)</IncludePath>
     <LibraryPath>[#libraryPaths#]$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
@@ -71,10 +71,10 @@
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>[#libraries#]%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>[#librariesDebug#];%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <PreBuildEvent>
-      <Command>[#cleanPreCompiledHeaders#] nar:nar-testUnpack</Command>
+      <Command>[#cleanPreCompiledHeaders#]</Command>
     </PreBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -100,10 +100,10 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
-      <AdditionalDependencies>[#libraries#]%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>[#libraries#];%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <PreBuildEvent>
-      <Command>[#cleanPreCompiledHeaders#] nar:nar-testUnpack</Command>
+      <Command>[#cleanPreCompiledHeaders#]</Command>
     </PreBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>

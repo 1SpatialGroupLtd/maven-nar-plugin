@@ -32,6 +32,8 @@ public class NarVisualStudioSetupMojo extends AbstractCompileMojo {
 
     private static final String LIB_EXTENSION = ".lib";
 
+    private static final String EXTERNAL_LIBS_FOLDER = "external-libs";
+
     private VS2012Project mainProject;
 
     private VS2012Project testProject;
@@ -52,10 +54,10 @@ public class NarVisualStudioSetupMojo extends AbstractCompileMojo {
         checkPermissions(getBasedir());
 
         File solutionDirectory = getSolutionDirectory();
-        String moduleName = getMavenProject().getName();
-        mainProject = new VS2012Project(solutionDirectory, moduleName + "Project");
-        testProject = new VS2012Project(solutionDirectory, moduleName + "TestProject");
-        dependencyProject = new VS2012Project(solutionDirectory, moduleName + "DependencyProject");
+        String moduleName = getMavenProject().getName().replace(' ', '_');
+        mainProject = new VS2012Project(solutionDirectory, moduleName + "_Project");
+        testProject = new VS2012Project(solutionDirectory, moduleName + "_TestProject");
+        dependencyProject = new VS2012Project(solutionDirectory, moduleName + "_DependencyProject");
 
         createSolution();
 
@@ -69,22 +71,23 @@ public class NarVisualStudioSetupMojo extends AbstractCompileMojo {
             MojoFailureException
     {
         Set defines = getDefines();
-        mainProjectInfo = buildProjectInfo(VS2012_PROJECT_TEMPLATE, getBinding(), defines, getDependencies(), getUnpackDirectory(), getCpp().getIncludePaths("main"), getSourcesFor(getCpp()));
+        mainProjectInfo = buildProjectInfo(VS2012_PROJECT_TEMPLATE, getBinding(), defines, getDependencies(), getUnpackDirectory(), getCpp().getIncludePaths("main"), getSourcesFor(getCpp()), mainProject, false);
 
-        testProjectInfo = buildProjectInfo(VS2012_TEST_PROJECT_TEMPLATE, Library.EXECUTABLE, defines, getTestDependencies(), getTestUnpackDirectory(), getCpp().getIncludePaths("test"), getTestSourcesFor(getCpp()));;
+        testProjectInfo = buildProjectInfo(VS2012_TEST_PROJECT_TEMPLATE, Library.EXECUTABLE, defines, getTestDependencies(), getTestUnpackDirectory(), getCpp().getIncludePaths("test"), getTestSourcesFor(getCpp()), testProject, true);
 
         dependencyProjectInfo = new ProjectInfo(VS2012_TEST_PROJECT_TEMPLATE, Library.SHARED, emptySet, emptySet, emptySet, emptySet, getFilesByExtension(getDirectIncludes(), ".h"), emptySet, new PchInfo());
     }
 
-    private ProjectInfo buildProjectInfo(String template, String binding, Set defines, List dependencies, File unpackDirectory, List headerLocations, List sourceFiles) throws MojoExecutionException, MojoFailureException
+    private ProjectInfo buildProjectInfo(String template, String binding, Set defines, List dependencies, File unpackDirectory, List headerLocations, List sourceFiles, VS2012Project project, boolean testBuild) throws MojoExecutionException, MojoFailureException
     {
-        Set libraryPaths = getLibraryPaths(dependencies, unpackDirectory);
+        Set libraryPaths = getLibraryPaths(dependencies, unpackDirectory, testBuild);
+        //libraryPaths.add(project.getRelativeProjectPath());
         return new ProjectInfo(template,
                 binding,
                 defines,
                 getIncludePaths(dependencies, unpackDirectory),
                 libraryPaths,
-                getLibraryFilePaths(libraryPaths),
+                getLibraryFilePaths(libraryPaths, testBuild),
                 getHeaderFilePaths(headerLocations),
                 getSourceFilePaths(sourceFiles),
                 getPchInfo());
@@ -132,6 +135,16 @@ public class NarVisualStudioSetupMojo extends AbstractCompileMojo {
     {
         //Use the test scope as this will include both test and compile dependencies
         List dependencies = getNarManager().getNarDependencies(Artifact.SCOPE_TEST);
+        
+        for ( Iterator i = dependencies.iterator(); i.hasNext(); )
+        {
+        	NarArtifact narDependency = (NarArtifact) i.next();
+        	if (getTestExcludeDependencies().contains(narDependency.getArtifactId()))
+        	{
+        		getLog().debug("Excluding dependency: " + narDependency.getArtifactId());
+        		dependencies.remove(narDependency);
+        	}
+        }
         reportOnDependencies("Found test dependencies:", dependencies);
         return dependencies;
     }
@@ -214,7 +227,7 @@ public class NarVisualStudioSetupMojo extends AbstractCompileMojo {
         return defines;
     }
 
-    private Set getLibraryPaths(List dependencies, File unpackDirectory) throws MojoFailureException,
+    private Set getLibraryPaths(List dependencies, File unpackDirectory, boolean testBuild) throws MojoFailureException,
             MojoExecutionException
     {
         Set libraryPaths = new HashSet();
@@ -230,20 +243,29 @@ public class NarVisualStudioSetupMojo extends AbstractCompileMojo {
                 libraryPaths.add(libraryPath.getPath());
             }
         }
-        File libDir = getLayout().getLibDirectory(getTargetDirectory(), getMavenProject().getArtifactId(),
-                getMavenProject().getVersion(), getAOL().toString(), getBinding());
         //Add out own output directory
-        libraryPaths.add(libDir.getPath());
+        
+        // Add external-libs folder
+        libraryPaths.add(getBasedir() + "\\" + EXTERNAL_LIBS_FOLDER);
+        
+        // Add main project lib for test project to link against
+        if (testBuild)
+        {
+            libraryPaths.add(getVisualStudioMainProjectLib());
+        }
         reportOnStringSet("Found library paths:", libraryPaths);
         return libraryPaths;
     }
 
-    private Set getLibraryFilePaths(Set libraryPaths) throws MojoExecutionException, MojoFailureException
+    private Set getLibraryFilePaths(Set libraryPaths, boolean testBuild) throws MojoExecutionException, MojoFailureException
     {
         Set libraryFiles = new HashSet();
         libraryFiles.addAll(getFilesByExtension(libraryPaths, LIB_EXTENSION));
+        if (testBuild)
+        {
+            libraryFiles.add(getVisualStudioMainProjectLib());
+        }
         reportOnStringSet("Found libraries:", libraryFiles);
-
         return libraryFiles;
     }
 
@@ -290,7 +312,7 @@ public class NarVisualStudioSetupMojo extends AbstractCompileMojo {
 
     private void createSolution() throws MojoExecutionException
     {
-        File solution = new File(getSolutionDirectory(), getMavenProject().getName() + "Solution.sln");
+        File solution = new File(getSolutionDirectory(), getMavenProject().getName().replace(' ', '_') + "_Solution.sln");
         VisualStudioTemplateModifier modifier =
             new VisualStudioSolutionTemplateModifier("VS2012SolutionTemplate.txt",
                     solution, getGUID(), mainProject, testProject, dependencyProject);
@@ -299,7 +321,7 @@ public class NarVisualStudioSetupMojo extends AbstractCompileMojo {
 
     private File getSolutionDirectory()
     {
-        return new File(getBasedir(), getMavenProject().getName() + "Solution");
+        return new File(getBasedir(), getMavenProject().getName().replace(' ', '_') + "_Solution");
     }
 
     private void checkPermissions(File directory)
@@ -355,5 +377,22 @@ public class NarVisualStudioSetupMojo extends AbstractCompileMojo {
         public File directory;
         public boolean usePch = false;
         public String pchName;
+    }
+    
+    private String getVisualStudioMainProjectLib()
+    {
+    	String mainProjectLib;
+        String moduleLibName = getMavenProject().getName().replace(' ', '_') + "_Project.lib";
+        String folder;
+        if (debug)
+        {
+            folder = "Debug";
+        }
+        else
+        {
+            folder = "Release";
+        }
+    	mainProjectLib = getSolutionDirectory().getPath() + "\\" + folder + "\\" + moduleLibName;
+        return mainProjectLib;
     }
 }
