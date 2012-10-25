@@ -392,6 +392,13 @@ public abstract class Compiler
         return result;
     }
 
+    protected final List getSystemIncludePaths()
+    {
+        List result = new ArrayList();
+        result.addAll(systemIncludePaths);
+        return result;
+    }
+
     protected final String getPrefix()
         throws MojoFailureException, MojoExecutionException
     {

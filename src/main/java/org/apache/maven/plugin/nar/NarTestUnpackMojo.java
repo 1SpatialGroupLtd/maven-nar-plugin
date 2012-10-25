@@ -55,14 +55,14 @@ public class NarTestUnpackMojo
         }
         if ( classifiers == null )
         {
-        	mgr.unpackAttachedNars( narArtifacts, archiverManager, null, getOS(), getLayout(), getTestUnpackDirectory() );
+            mgr.unpackAttachedNars( narArtifacts, archiverManager, null, getOS(), getLayout(), getTestUnpackDirectory() );
         }
         else
         {
-        	for ( Iterator j = classifiers.iterator(); j.hasNext(); )
-        	{
-        		mgr.unpackAttachedNars( narArtifacts, archiverManager, (String) j.next(), getOS(), getLayout(), getTestUnpackDirectory() );
-        	}
+            for ( Iterator j = classifiers.iterator(); j.hasNext(); )
+            {
+                mgr.unpackAttachedNars( narArtifacts, archiverManager, (String) j.next(), getOS(), getLayout(), getTestUnpackDirectory() );
+            }
         }
     }
 }

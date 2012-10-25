@@ -44,12 +44,12 @@
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <LinkIncremental>true</LinkIncremental>
-    <IncludePath>[#includes#]..\..\external-sources;..\..\external-sources\include;$(IncludePath)</IncludePath>
+    <IncludePath>[#includes#]$(IncludePath)</IncludePath>
     <LibraryPath>[#libraryPaths#]$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <LinkIncremental>false</LinkIncremental>
-    <IncludePath>[#includes#]..\..\external-sources;..\..\external-sources\include;$(IncludePath)</IncludePath>
+    <IncludePath>[#includes#]$(IncludePath)</IncludePath>
     <LibraryPath>[#libraryPaths#]$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
@@ -67,6 +67,7 @@
       <CallingConvention />
       <RuntimeTypeInfo>true</RuntimeTypeInfo>
       <AdditionalOptions>[#defines#] [#forcedIncludesDebug#]%(AdditionalOptions)</AdditionalOptions>
+      <RuntimeLibrary>[#runtimeLibraryDebug#]</RuntimeLibrary>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -94,6 +95,7 @@
       <CallingConvention />
       <RuntimeTypeInfo>true</RuntimeTypeInfo>
       <AdditionalOptions>[#defines#] [#forcedIncludes#]%(AdditionalOptions)</AdditionalOptions>
+      <RuntimeLibrary>[#runtimeLibrary#]</RuntimeLibrary>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>

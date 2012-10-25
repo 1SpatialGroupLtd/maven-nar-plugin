@@ -7,6 +7,8 @@ public class VisualStudioProjectTemplateModifier extends
         VisualStudioTemplateModifier
 {
 
+    private static final String RUNTIME_STATIC = "static";
+    private static final String RUNTIME_DYNAMIC = "dynamic";
     private String projectGUID;
     private String projectName;
     private ProjectInfo info;
@@ -40,6 +42,9 @@ public class VisualStudioProjectTemplateModifier extends
         modifiedContents = replace(modifiedContents, PRE_COMPILED_HEADER_H_DEBUG, getPreCompiledHeaderH(true));
         modifiedContents = replace(modifiedContents, PRE_COMPILED_HEADER_PDB_DEBUG, getPreCompiledHeaderPdb(true));
         modifiedContents = replace(modifiedContents, FORCED_INCLUDES_DEBUG, getForcedIncludes(true));
+        modifiedContents = replace(modifiedContents, RUNTIME_LIBRARY, getRuntimeLibrary(false));
+        modifiedContents = replace(modifiedContents, RUNTIME_LIBRARY_DEBUG, getRuntimeLibrary(true));
+
 
         return modifiedContents;
     }
@@ -51,11 +56,19 @@ public class VisualStudioProjectTemplateModifier extends
         return "";
     }
 
+    private String getRuntimeLibrary(boolean debug)
+    {
+        String runtimeLib = debug ? "Debug" : "";
+        if(info.getRuntime().equals(RUNTIME_STATIC))
+            return "MultiThreaded" + runtimeLib;
+        return "MultiThreaded" + runtimeLib + "Dll";
+    }
+
     private String getCleanPreCompiledHeadersCommand() throws MojoExecutionException
     {
-    	StringBuilder builder = new StringBuilder();
         if(info.usePch())
         {
+            StringBuilder builder = new StringBuilder();
             builder.append("rmdir /Q/S " + info.getPchBaseDirectory() + "\r\n");
             builder.append("cd ..\\..\\\r\n");
             builder.append("mvn nar:nar-unpack nar:nar-testUnpack");

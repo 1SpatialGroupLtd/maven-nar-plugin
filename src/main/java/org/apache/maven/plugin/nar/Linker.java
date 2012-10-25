@@ -232,13 +232,13 @@ public class Linker
         }
         else if ( name.equals( "CC" ) )
         {
-        	NarUtil.runCommand( "CC", new String[] { "-V" }, null, null, out, err, dbg );
-        	Pattern p = Pattern.compile( "\\d+\\.d+" );
-        	Matcher m = p.matcher( err.toString() );
-        	if ( m.find() )
-        	{ 
-        		version = m.group( 0 ); 
-        	}
+            NarUtil.runCommand( "CC", new String[] { "-V" }, null, null, out, err, dbg );
+            Pattern p = Pattern.compile( "\\d+\\.d+" );
+            Matcher m = p.matcher( err.toString() );
+            if ( m.find() )
+            {
+                version = m.group( 0 );
+            }
         }
         else
         {
@@ -246,7 +246,7 @@ public class Linker
         }
         
         if (version == null) {
-        	throw new MojoFailureException( "Cannot deduce version number from: " + out.toString() );
+            throw new MojoFailureException( "Cannot deduce version number from: " + out.toString() );
         }
         return version;
     }

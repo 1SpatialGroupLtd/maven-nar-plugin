@@ -18,10 +18,11 @@ public class ProjectInfo
     private Set sourceFiles;
     private File directory;
     private PchInfo pchInfo;
+    private String runtime;
 
     public ProjectInfo(String projectTemplate, String binding, Set defines, Set includes,
             Set libraryPaths, Set libraryFiles, Set headerFiles,
-            Set sourceFiles, PchInfo pchInfo)
+            Set sourceFiles, PchInfo pchInfo, String runtime)
     {
         this.projectTemplate = projectTemplate;
         this.binding = binding;
@@ -32,6 +33,7 @@ public class ProjectInfo
         this.headerFiles = headerFiles;
         this.sourceFiles = sourceFiles;
         this.pchInfo = pchInfo;
+        this.runtime = runtime;
     }
 
     public void setProjectDirectory(File directory)
@@ -47,6 +49,11 @@ public class ProjectInfo
     public String getBinding()
     {
         return binding;
+    }
+
+    public String getRuntime()
+    {
+        return runtime;
     }
 
     public Set getIncludes() throws MojoExecutionException
