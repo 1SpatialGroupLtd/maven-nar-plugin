@@ -2,6 +2,7 @@ package org.apache.maven.plugin.nar;
 
 import java.io.File;
 import java.io.FilenameFilter;
+import java.io.IOException;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -12,6 +13,7 @@ import java.util.UUID;
 import org.apache.maven.artifact.Artifact;
 import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.plugin.MojoFailureException;
+import org.apache.maven.surefire.shade.org.codehaus.plexus.util.FileUtils;
 
 /**
  * Sets up a Visual Studio 2012 solution for a module
@@ -53,7 +55,7 @@ public class NarVisualStudioSetupMojo extends AbstractCompileMojo {
     {
         checkPermissions(getBasedir());
 
-        File solutionDirectory = getSolutionDirectory();
+        File solutionDirectory = createSolutionDirectory();
         String moduleName = getMavenProject().getName().replace(' ', '_');
         mainProject = new VS2012Project(solutionDirectory, moduleName + "_Project");
         testProject = new VS2012Project(solutionDirectory, moduleName + "_TestProject");
@@ -328,6 +330,24 @@ public class NarVisualStudioSetupMojo extends AbstractCompileMojo {
             new VisualStudioSolutionTemplateModifier("VS2012SolutionTemplate.txt",
                     solution, getGUID(), mainProject, testProject, dependencyProject);
         modifier.createPopulatedOutput();
+    }
+
+    private File createSolutionDirectory() throws MojoExecutionException
+    {
+        File solutionDirectory = getSolutionDirectory();
+        if (solutionDirectory.exists())
+        {
+            try
+            {
+                // Deletes directory to prevent problems with previous VS builds.
+                FileUtils.deleteDirectory(solutionDirectory);
+            }
+            catch (IOException e)
+            {
+                throw new MojoExecutionException(e.getStackTrace().toString());
+            }
+        }
+        return solutionDirectory;
     }
 
     private File getSolutionDirectory()
