@@ -6,26 +6,30 @@ import org.apache.maven.plugin.MojoExecutionException;
 public class VisualStudioProjectTemplateModifier extends
         VisualStudioTemplateModifier
 {
-
     private static final String RUNTIME_STATIC = "static";
     private static final String RUNTIME_DYNAMIC = "dynamic";
+    private static final String PCHHEADERINCLUDE = "PCHHEADERFILE";
+    private String narPrecompiledHeaderFilePath;
     private String projectGUID;
     private String projectName;
     private ProjectInfo info;
 
     public VisualStudioProjectTemplateModifier(ProjectInfo info,
-            File destinationFile, String projectGUID, String projectName) throws MojoExecutionException
+            File destinationFile, String projectGUID, String projectName, String narPrecompiledHeaderFilePath) throws MojoExecutionException
     {
         super(info.getPprojectTemplate(), destinationFile);
         this.projectGUID = projectGUID;
         this.projectName = projectName;
         this.info = info;
+        this.narPrecompiledHeaderFilePath = narPrecompiledHeaderFilePath;
     }
 
     protected String replacePlaceholders(String contents) throws MojoExecutionException
     {
         String modifiedContents = replace(contents, PROJECT_GUID, projectGUID);
         modifiedContents = replace(modifiedContents, PROJECT_NAME, projectName);
+        modifiedContents = replace(modifiedContents, MAIN_PROJECT_GUID, info.getMainProjectGUID());
+        modifiedContents = replace(modifiedContents, MAIN_PROJECT_PATH, info.getMainProjectRelativePath());
         modifiedContents = replace(modifiedContents, LIBRARY_TYPE, getProjectTypeString());
         modifiedContents = replace(modifiedContents, INCLUDES, getIncludesAsString());
         modifiedContents = replace(modifiedContents, LIBRARY_PATHS, getLibraryPathsAsString());
@@ -36,11 +40,12 @@ public class VisualStudioProjectTemplateModifier extends
         modifiedContents = replace(modifiedContents, SOURCE_FILE_ELEMENTS, getSourceFileElementsAsString());
         modifiedContents = replace(modifiedContents, USE_PRE_COMPILED_HEADERS, getUsePreCompiledHeaders());
         modifiedContents = replace(modifiedContents, CLEAN_PRE_COMPILED_HEADERS, getCleanPreCompiledHeadersCommand());
+        modifiedContents = replace(modifiedContents, COPY_PRE_COMPILED_HEADER_FILE, getPrecompiledHeaderFileCopyCommand());
         modifiedContents = replace(modifiedContents, PRE_COMPILED_HEADER_H, getPreCompiledHeaderH(false));
         modifiedContents = replace(modifiedContents, PRE_COMPILED_HEADER_PDB, getPreCompiledHeaderPdb(false));
         modifiedContents = replace(modifiedContents, FORCED_INCLUDES, getForcedIncludes(false));
         modifiedContents = replace(modifiedContents, PRE_COMPILED_HEADER_H_DEBUG, getPreCompiledHeaderH(true));
-        modifiedContents = replace(modifiedContents, PRE_COMPILED_HEADER_PDB_DEBUG, getPreCompiledHeaderPdb(true));
+        modifiedContents = replace(modifiedContents, PRE_COMPILED_HEADER_PDB_DEBUG, getProjectPrecompiledHeaderPdb(true));
         modifiedContents = replace(modifiedContents, FORCED_INCLUDES_DEBUG, getForcedIncludes(true));
         modifiedContents = replace(modifiedContents, RUNTIME_LIBRARY, getRuntimeLibrary(false));
         modifiedContents = replace(modifiedContents, RUNTIME_LIBRARY_DEBUG, getRuntimeLibrary(true));
@@ -64,16 +69,51 @@ public class VisualStudioProjectTemplateModifier extends
         return "MultiThreaded" + runtimeLib + "Dll";
     }
 
+    private String getPrecompiledHeaderFileCopyCommand() throws MojoExecutionException
+    {
+        if(info.usePch())
+        {
+            String precompiledHeaderFile = narPrecompiledHeaderFilePath + File.separator + info.getPchFileName() + ".h";
+            File file = new File(precompiledHeaderFile);
+            if (!file.exists())
+                throw new MojoExecutionException("Please specify a valid path to the pch header file using maven option -DnarPrecompiledHeader.path\r\nRelative paths should start from the project base directory.");
+            else
+            {
+                // Relative path problem, file exists check basedir is two directories higher than the project location
+                if (precompiledHeaderFile.startsWith(".."))
+                {
+                    precompiledHeaderFile = "..\\..\\" + precompiledHeaderFile;
+                }
+                StringBuilder builder = new StringBuilder();
+                builder.append("\r\ncopy ");
+                builder.append(precompiledHeaderFile);
+                builder.append(" ");
+                builder.append(info.getRelativePchDirectory(true) + File.separator + info.getPchFileName() + ".h");
+                return builder.toString();
+            }
+        }
+        return "";
+    }
+
     private String getCleanPreCompiledHeadersCommand() throws MojoExecutionException
     {
         if(info.usePch())
         {
             StringBuilder builder = new StringBuilder();
-            builder.append("rmdir /Q/S " + info.getPchBaseDirectory() + "\r\n");
-            builder.append("cd ..\\..\\\r\n");
-            builder.append("mvn nar:nar-unpack nar:nar-testUnpack");
+            builder.append("copy ");
+            builder.append(getPreCompiledHeaderPdb(true));
+            builder.append(" ");
+            builder.append(getProjectPrecompiledHeaderPdb(true));
             return builder.toString();
         }
+        return "";
+    }
+
+    private String getProjectPrecompiledHeaderPdb(boolean debug) throws MojoExecutionException
+    {
+        String folderName = debug ? "Debug" : "Release";
+        if(info.usePch())
+            return folderName + File.separator + info.getPchFileName() + ".pdb";
         return "";
     }
 
@@ -119,7 +159,7 @@ public class VisualStudioProjectTemplateModifier extends
 
     private String getDefinesAsString()
     {
-        return convertToStringUsingPrefix(info.getDefines(), "/D ", " ");
+        return convertToStringUsingPrefix(info.getDefines(), "/D ", " ") + "/D" + PCHHEADERINCLUDE + " ";
     }
 
     private String getLibraryPathsAsString() throws MojoExecutionException

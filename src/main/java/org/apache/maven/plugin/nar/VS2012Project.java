@@ -31,18 +31,18 @@ public class VS2012Project
         userFile = new File(directory, name + VCXPROJ_USER_EXTENSION);
     }
 
-    public void createProjectFiles(ProjectInfo info) throws MojoExecutionException, MojoFailureException
+    public void createProjectFiles(ProjectInfo info, String narPrecompiledHeaderFilePath) throws MojoExecutionException, MojoFailureException
     {
         info.setProjectDirectory(directory);
-        createProjectFile(info);
+        createProjectFile(info, narPrecompiledHeaderFilePath);
         createFiltersFile(info);
         createUserFile(info);
     }
 
-    private void createProjectFile(ProjectInfo info) throws MojoExecutionException, MojoFailureException
+    private void createProjectFile(ProjectInfo info ,String narPrecompiledHeaderFilePath) throws MojoExecutionException, MojoFailureException
     {
         VisualStudioTemplateModifier modifier =
-            new VisualStudioProjectTemplateModifier(info, projectFile, GUID, name);
+            new VisualStudioProjectTemplateModifier(info, projectFile, GUID, name, narPrecompiledHeaderFilePath);
         modifier.createPopulatedOutput();
     }
 

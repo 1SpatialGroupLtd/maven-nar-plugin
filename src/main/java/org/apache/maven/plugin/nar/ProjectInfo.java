@@ -19,10 +19,12 @@ public class ProjectInfo
     private File directory;
     private PchInfo pchInfo;
     private String runtime;
+    private String mainProjectGUID;
+    private String mainProjectRelativePath;
 
     public ProjectInfo(String projectTemplate, String binding, Set defines, Set includes,
             Set libraryPaths, Set libraryFiles, Set headerFiles,
-            Set sourceFiles, PchInfo pchInfo, String runtime)
+            Set sourceFiles, PchInfo pchInfo, String runtime, String mainProjectGUID, String mainProjectRelativePath)
     {
         this.projectTemplate = projectTemplate;
         this.binding = binding;
@@ -34,6 +36,8 @@ public class ProjectInfo
         this.sourceFiles = sourceFiles;
         this.pchInfo = pchInfo;
         this.runtime = runtime;
+        this.mainProjectGUID = mainProjectGUID;
+        this.mainProjectRelativePath = mainProjectRelativePath;
     }
 
     public void setProjectDirectory(File directory)
@@ -114,5 +118,15 @@ public class ProjectInfo
     public boolean usePch()
     {
         return pchInfo.usePch;
+    }
+
+    public String getMainProjectGUID()
+    {
+        return mainProjectGUID;
+    }
+
+    public String getMainProjectRelativePath()
+    {
+        return mainProjectRelativePath;
     }
 }

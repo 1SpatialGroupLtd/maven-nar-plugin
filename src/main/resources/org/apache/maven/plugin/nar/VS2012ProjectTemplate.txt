@@ -75,7 +75,7 @@
       <AdditionalDependencies>[#librariesDebug#];%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <PreBuildEvent>
-      <Command>[#cleanPreCompiledHeaders#]</Command>
+      <Command>[#cleanPreCompiledHeaders#][#copyPrecompiledHeaderFile#]</Command>
     </PreBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -91,7 +91,6 @@
       <MinimalRebuild />
       <PrecompiledHeaderFile>[#preCompiledHeader.h#]</PrecompiledHeaderFile>
       <PrecompiledHeaderOutputFile />
-      <ProgramDataBaseFileName>[#preCompiledHeader.pdb#]</ProgramDataBaseFileName>
       <CallingConvention />
       <RuntimeTypeInfo>true</RuntimeTypeInfo>
       <AdditionalOptions>[#defines#] [#forcedIncludes#]%(AdditionalOptions)</AdditionalOptions>

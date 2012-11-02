@@ -35,6 +35,13 @@ public class NarVisualStudioSetupMojo extends AbstractCompileMojo {
     private static final String LIB_EXTENSION = ".lib";
 
     private static final String EXTERNAL_LIBS_FOLDER = "external-libs";
+    /**
+     * Path to the precompiled headers header file.
+     *
+     * @parameter expression="${narPrecompiledHeader.path}" default-value="..\\..\\precompiledheaders\\amalgam\\src\\main\\include"
+     * @required
+     */
+    private String narPrecompiledHeaderFilePath;
 
     private VS2012Project mainProject;
 
@@ -64,9 +71,9 @@ public class NarVisualStudioSetupMojo extends AbstractCompileMojo {
         createSolution();
 
         initProjectInfos();
-        mainProject.createProjectFiles(mainProjectInfo);
-        testProject.createProjectFiles(testProjectInfo);
-        dependencyProject.createProjectFiles(dependencyProjectInfo);
+        mainProject.createProjectFiles(mainProjectInfo, narPrecompiledHeaderFilePath);
+        testProject.createProjectFiles(testProjectInfo, narPrecompiledHeaderFilePath);
+        dependencyProject.createProjectFiles(dependencyProjectInfo, narPrecompiledHeaderFilePath);
     }
 
     private void initProjectInfos() throws MojoExecutionException,
@@ -77,7 +84,7 @@ public class NarVisualStudioSetupMojo extends AbstractCompileMojo {
 
         testProjectInfo = buildProjectInfo(VS2012_TEST_PROJECT_TEMPLATE, Library.EXECUTABLE, defines, getTestDependencies(), getTestUnpackDirectory(), getCpp().getIncludePaths("test"), getTestSourcesFor(getCpp()), true);
 
-        dependencyProjectInfo = new ProjectInfo(VS2012_TEST_PROJECT_TEMPLATE, Library.SHARED, emptySet, emptySet, emptySet, emptySet, getFilesByExtension(getDirectIncludes(), ".h"), emptySet, new PchInfo(), getRuntime());
+        dependencyProjectInfo = new ProjectInfo(VS2012_PROJECT_TEMPLATE, Library.SHARED, emptySet, emptySet, emptySet, emptySet, getFilesByExtension(getDirectIncludes(), ".h"), emptySet, new PchInfo(), getRuntime(), mainProject.getGUID(), mainProject.getRelativeProjectPath());
     }
 
     private ProjectInfo buildProjectInfo(String template, String binding, Set defines, List dependencies, File unpackDirectory, List headerLocations, List sourceFiles, boolean testBuild) throws MojoExecutionException, MojoFailureException
@@ -92,7 +99,9 @@ public class NarVisualStudioSetupMojo extends AbstractCompileMojo {
                 getHeaderFilePaths(headerLocations),
                 getSourceFilePaths(sourceFiles),
                 getPchInfo(),
-                getRuntime());
+                getRuntime(),
+                mainProject.getGUID(),
+                mainProject.getRelativeProjectPath());
     }
 
     private PchInfo getPchInfo() throws MojoExecutionException, MojoFailureException
@@ -184,6 +193,12 @@ public class NarVisualStudioSetupMojo extends AbstractCompileMojo {
         // It is OK to add test includes even for non-test projects as files will only be included if referenced by #include or /FI
         // Files in test/include should NOT share names with files in main/include, otherwise the compiler will not know which one to reference
         includes.add(getBasedir() + "\\src\\test\\include");
+        // Adding directory for precompiled header file
+        if (getPchInfo().usePch)
+        {
+            String folder = debug ? "Debug" : "Release";
+            includes.add(getPchInfo().directory.getPath() + "\\" + folder);
+        }
         reportOnStringSet("Found include locations:", includes);
         return includes;
     }
@@ -344,7 +359,7 @@ public class NarVisualStudioSetupMojo extends AbstractCompileMojo {
             }
             catch (IOException e)
             {
-                throw new MojoExecutionException(e.getStackTrace().toString());
+                throw new MojoExecutionException(e.getMessage());
             }
         }
         return solutionDirectory;

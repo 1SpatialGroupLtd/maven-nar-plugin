@@ -94,7 +94,6 @@
       <MinimalRebuild />
       <PrecompiledHeaderFile>[#preCompiledHeader.h#]</PrecompiledHeaderFile>
       <PrecompiledHeaderOutputFile />
-      <ProgramDataBaseFileName>[#preCompiledHeader.pdb#]</ProgramDataBaseFileName>
       <CallingConvention />
       <RuntimeTypeInfo>true</RuntimeTypeInfo>
       <AdditionalOptions>[#defines#] [#forcedIncludes#]%(AdditionalOptions)</AdditionalOptions>
@@ -113,6 +112,11 @@
   </ItemDefinitionGroup>
   <ItemGroup>
 [#headerFileElements#]
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\[#mainProjectPath#]">
+      <Project>{[#mainProjectGUID#]}</Project>
+    </ProjectReference>
   </ItemGroup>
   <ItemGroup>
 [#sourceFileElements#]
