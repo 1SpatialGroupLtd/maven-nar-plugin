@@ -35,10 +35,11 @@ public class NarVisualStudioSetupMojo extends AbstractCompileMojo {
     private static final String LIB_EXTENSION = ".lib";
 
     private static final String EXTERNAL_LIBS_FOLDER = "external-libs";
+
     /**
      * Path to the precompiled headers header file.
      *
-     * @parameter expression="${narPrecompiledHeader.path}" default-value="..\\..\\precompiledheaders\\amalgam\\src\\main\\include"
+     * @parameter expression="${narPrecompiledHeader.path}" default-value="..\\..\\precompiledheaders-1.5\\amalgam\\src\\main\\include"
      * @required
      */
     private String narPrecompiledHeaderFilePath;
