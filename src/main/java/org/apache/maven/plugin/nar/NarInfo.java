@@ -43,6 +43,8 @@ public class NarInfo
 
     private static final String LIBS_NAMES = "libs.names";
 
+    private static final String CREATE_NUGET = "create.nuget";
+
     public static final String NAR_PROPERTIES = "nar.properties";
 
     private static final String PCH_NAMES = "pch.names";
@@ -253,9 +255,19 @@ public class NarInfo
         setProperty(aol, LIBS_WINRT, Boolean.toString(targetWinRT));
     }
 
+    public final void setCreateNuget(AOL aol, boolean createNuget)
+    {
+        setProperty(aol, CREATE_NUGET, Boolean.toString(createNuget));
+    }
+
     public final boolean isTargetWinRT(AOL aol)
     {
         return getProperty(aol, LIBS_WINRT, false);
+    }
+
+    public final boolean isCreateNuget(AOL aol)
+    {
+        return getProperty(aol, CREATE_NUGET, false);
     }
 
     public final void setPchNames(AOL aol, Set pchNames)

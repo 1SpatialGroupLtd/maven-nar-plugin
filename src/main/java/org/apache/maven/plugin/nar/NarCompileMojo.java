@@ -514,6 +514,15 @@ public class NarCompileMojo
 
     protected boolean excludeDependency(NarArtifact narDependency) throws MojoExecutionException, MojoFailureException
     {
+        for(Iterator i = getCompileExcludeDependencies().iterator(); i.hasNext();)
+        {
+            String exclude = (String) i.next();
+            if(narDependency.getArtifactId().equals(exclude))
+            {
+                getLog().info( "Excluding dependency " + exclude );
+                return true;
+            }
+        }
         return false;
     }
 

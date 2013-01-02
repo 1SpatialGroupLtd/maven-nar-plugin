@@ -83,9 +83,16 @@ public abstract class AbstractCompileMojo
     /**
      * List of artifact ids for dependencies to be excluded during test phases.
      *
-     * @parameter expression=""
+     * @parameter expression="" default-value=""
      */
     private List testExcludeDependencies;
+
+    /**
+     * List of artifact ids for dependencies where include headers should be excluded.
+     *
+     * @parameter expression="" default-value=""
+     */
+    private List compileExcludeDependencies;
 
     /**
      * Fail on compilation/linking error.
@@ -153,6 +160,11 @@ public abstract class AbstractCompileMojo
     private List/* <String> */dependencyLibOrder;
 
     private Project antProject;
+
+    /**
+     * @parameter expression="" default="false"
+     */
+    protected boolean createNugetPackage;
 
     protected final Project getAntProject()
     {
@@ -227,13 +239,23 @@ public abstract class AbstractCompileMojo
     }
 
     protected final List getTestExcludeDependencies()
-            throws MojoExecutionException, MojoFailureException
+        throws MojoExecutionException, MojoFailureException
     {
         if ( testExcludeDependencies == null )
         {
             testExcludeDependencies = Collections.EMPTY_LIST;
         }
         return testExcludeDependencies;
+    }
+
+    protected final List getCompileExcludeDependencies()
+            throws MojoExecutionException, MojoFailureException
+    {
+        if ( compileExcludeDependencies == null )
+        {
+            compileExcludeDependencies = Collections.EMPTY_LIST;
+        }
+        return compileExcludeDependencies;
     }
 
     protected final File getJavaHome( AOL aol )
@@ -336,8 +358,8 @@ public abstract class AbstractCompileMojo
                 }
             //add this info to the narInfo
             narInfo.setPchNames(getAOL(), pchNames);
-
             narInfo.setTargetWinRT(getAOL(), isTargetWinRT());
+            narInfo.setCreateNuget(getAOL(), createNugetPackage);
         }
         return narInfo;
     }

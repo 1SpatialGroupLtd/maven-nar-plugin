@@ -11,7 +11,6 @@ import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
-
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
 import javax.xml.transform.Result;
@@ -23,6 +22,7 @@ import javax.xml.transform.dom.DOMSource;
 import javax.xml.transform.stream.StreamResult;
 
 import org.apache.maven.artifact.Artifact;
+import org.apache.maven.model.Dependency;
 import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.plugin.MojoFailureException;
 import org.apache.maven.project.MavenProject;
@@ -46,499 +46,554 @@ import org.xml.sax.SAXException;
 public class NarNugetMojo extends AbstractCompileMojo
 {
     private static final String NUGET_LIST_COMMAND = "NuGet.exe list -Source";
-	private static final String CONTENT_PLACEHOLDER = "<contentPlaceholder>";
-	private static final String EMPTY_ARRAY = "@()";
-	private static final String SHARED = "shared";
-	private static final String NUPKG_EXTENSION = ".nupkg";
-	private static final String NUGET_PACK_COMMAND = "NuGet.exe pack <nuspecFile> -NoPackageAnalysis";
-	private static final String TOOLS_LOCATION = "tools";
-	private static final String INSTALL_SCRIPT_NAME = "install.ps1";
-	private static final String VERSION_ATTRIBUTE = "version";
-	private static final String ID_ATTRIBUTE = "id";
-	private static final String DEPENDENCY_TAG = "dependency";
-	private static final String DEPENDENCIES_TAG = "dependencies";
-	private static final String REFERENCES_TAG = "references";
-	private static final String METADATA_TAG = "metadata";
-	private static final String FILE_ATTRIBUTE = "file";
-	private static final String PRODUCT_NAME = "FeatureEditor";
-	private static final String OWNER = "1Spatial";
-	private static final String TAGS_TAG = "tags";
-	private static final String RELEASE_NOTES_TAG = "releaseNotes";
-	private static final String DESCRIPTION_TAG = "description";
-	private static final String ICON_URL_TAG = "iconUrl";
-	private static final String PROJECT_URL_TAG = "projectUrl";
-	private static final String LICENSE_URL_TAG = "licenseUrl";
-	private static final String AUTHORS_TAG = "authors";
-	private static final String OWNERS_TAG = "owners";
-	private static final String VERSION_TAG = VERSION_ATTRIBUTE;
-	private static final String SNAPSHOT_SUFFIX = "-SNAPSHOT";
-	private static final String NUGET_SPEC_COMMAND = "NuGet.exe spec";
-	private static final String NUGET_LOCATION = "NuGet";
-	private static final String NUSPEC_EXTENSION = ".nuspec";
-	private static final String CONTENT_LOCATION = "content";
-	private static final String LIB_LOCATION = "lib";
-	private static final String WINRT_FRAMEWORK = "WinRT45";
-	private static final String DLL_EXTENSION = ".dll";
-	private static final String WINMD_EXTENSION = ".winmd";
-	private static final String REFERENCE_TAG = "reference";
-	private static final String UNINSTALL_SCRIPT_NAME = "uninstall.ps1";
-	protected static final String PDB_EXTENSION = ".pdb";
+    private static final String CONTENT_PLACEHOLDER = "<contentPlaceholder>";
+    private static final String EMPTY_ARRAY = "@()";
+    private static final String SHARED = "shared";
+    private static final String NUPKG_EXTENSION = ".nupkg";
+    private static final String NUGET_PACK_COMMAND = "NuGet.exe pack <nuspecFile> -NoPackageAnalysis";
+    private static final String TOOLS_LOCATION = "tools";
+    private static final String INSTALL_SCRIPT_NAME = "install.ps1";
+    private static final String VERSION_ATTRIBUTE = "version";
+    private static final String ID_ATTRIBUTE = "id";
+    private static final String DEPENDENCY_TAG = "dependency";
+    private static final String DEPENDENCIES_TAG = "dependencies";
+    private static final String REFERENCES_TAG = "references";
+    private static final String METADATA_TAG = "metadata";
+    private static final String FILE_ATTRIBUTE = "file";
+    private static final String PRODUCT_NAME = "FeatureEditor";
+    private static final String OWNER = "1Spatial";
+    private static final String TAGS_TAG = "tags";
+    private static final String RELEASE_NOTES_TAG = "releaseNotes";
+    private static final String DESCRIPTION_TAG = "description";
+    private static final String ICON_URL_TAG = "iconUrl";
+    private static final String PROJECT_URL_TAG = "projectUrl";
+    private static final String LICENSE_URL_TAG = "licenseUrl";
+    private static final String AUTHORS_TAG = "authors";
+    private static final String OWNERS_TAG = "owners";
+    private static final String VERSION_TAG = VERSION_ATTRIBUTE;
+    private static final String SNAPSHOT_SUFFIX = "-SNAPSHOT";
+    private static final String NUGET_SPEC_COMMAND = "NuGet.exe spec";
+    private static final String NUGET_LOCATION = "NuGet";
+    private static final String NUSPEC_EXTENSION = ".nuspec";
+    private static final String CONTENT_LOCATION = "content";
+    private static final String LIB_LOCATION = "lib";
+    private static final String WINRT_FRAMEWORK = "WinRT45";
+    private static final String DLL_EXTENSION = ".dll";
+    private static final String WINMD_EXTENSION = ".winmd";
+    private static final String REFERENCE_TAG = "reference";
+    private static final String UNINSTALL_SCRIPT_NAME = "uninstall.ps1";
+    protected static final String PDB_EXTENSION = ".pdb";
 
-	/**
-	 * @parameter expression=""
-	 * @required
-	 */
-	private String centralNugetPackageSource;
+    /**
+     * @parameter expression=""
+     * @required
+     */
+    private String centralNugetPackageSource;
 
-	/**
-	 * @parameter expression="" default="false"
-	 */
-	private boolean createNugetPackage;
+    /**
+     * Artifact Id of dependency used to to generate nuGet package.
+     *
+     * An empty string default value equates to a null object.
+     * @parameter expression="" default-value=""
+     */
+    private String narArtifactId;
 
-	private File nugetDir;
-	private File nuspecFile;
-	private String packageName;
-	private File libDirectory;
-	private Document nuspecDocument;
-	private String version;
-	private File nupkgFile;
-	private File contentDirectory;
+    private File nugetDir;
+    private File nuspecFile;
+    private String packageName;
+    private File libDirectory;
+    private Document nuspecDocument;
+    private String version;
+    private File nupkgFile;
+    private File contentDirectory;
 
-	public void narExecute() throws MojoFailureException,
-			MojoExecutionException
-	{
-		//Only create nuget packages for modules we are explicitly told to.
-		if(!createNugetPackage)
-		{
-			getLog().info("Not creating nuget package as createNugetPackage is false.");
-			return;
-		}
+    public void narExecute() throws MojoFailureException,
+            MojoExecutionException
+    {
+        //Only create nuget packages for modules we are explicitly told to.
+        if(!createNugetPackage)
+        {
+            getLog().info("Not creating nuget package as createNugetPackage is false.");
+            return;
+        }
 
-		packageName = convertToPackageName(getMavenProject().getArtifactId());
-		try
-		{
-			version = getNugetVersion();
-			cleanNugetDirectory();
-			createTemplateNuspecFile();
-			populateNuspecFile();
-			createContentDirectory();
-			moveContent();
-			if(isWinRT())
-			{
-				createLibDirectory();
-				moveLibs();
-			}
-			addScripts();
-			packNugetPackage();
-			copyToCentralPackageSource();
-		}
-		catch (Exception e)
-		{
-			throw new MojoFailureException("Failed to create NuGet package", e);
-		}
-	}
+        String artifactId = narArtifactId == null ? getMavenProject().getArtifactId() : narArtifactId;
+        packageName = convertToPackageName(artifactId);
 
-	private void moveFiles(File destination, FilenameFilter filefilter) throws MojoExecutionException, MojoFailureException, IOException
-	{
-		MavenProject mavenProject = getMavenProject();
-		File libDir = getLayout().getLibDirectory(getTargetDirectory(),
-				mavenProject.getArtifactId(), mavenProject.getVersion(),
-				getAOL().toString(), SHARED); //We only care about dlls.
-		getLog().debug("Source directory: " + libDir);
-		getLog().debug("Destination directory: " + destination);
+        try
+        {
+            version = getNugetVersion();
+            cleanNugetDirectory();
+            createTemplateNuspecFile();
+            populateNuspecFile();
+            createContentDirectory();
+            moveContent();
+            if(isWinRT())
+            {
+                createLibDirectory();
+                moveLibs();
+            }
+            addScripts();
+            packNugetPackage();
+            copyToCentralPackageSource();
+        }
+        catch (Exception e)
+        {
+            throw new MojoFailureException("Failed to create NuGet package", e);
+        }
+    }
 
-		File[] filesToCopy = libDir.listFiles(filefilter);
-		if(filesToCopy != null)
-			for(int i = 0; i < filesToCopy.length; i++)
-				copyToDirectory(filesToCopy[i], destination);
-	}
+    private void moveFiles(File destination, FilenameFilter filefilter) throws MojoExecutionException, MojoFailureException, IOException
+    {
+        MavenProject mavenProject = getMavenProject();
+        String artifactId = null;
+        String version = null;
+        if (narArtifactId != null)
+        {   //want to be able to use dlls from a dependency artifact if required
+            List dependencies = mavenProject.getDependencies();
+            for(int i = 0; i < dependencies.size(); i++)
+            {
+                Dependency d = (Dependency) dependencies.get(i);
+                if (d.getArtifactId().equals(narArtifactId))
+                {
+                    artifactId = d.getArtifactId();
+                    version = d.getVersion();
+                }
+            }
+            if(version==null)
+            {
+                throw new MojoFailureException("Could not find dependency for narArtifactId '" + narArtifactId + "'");
+            }
+        }
+        else
+        {
+            artifactId = mavenProject.getArtifactId();
+            version = mavenProject.getVersion();
+        }
+        File libDir = getLayout().getLibDirectory(getTargetDirectory(),
+                artifactId, version,
+                getAOL().toString(), SHARED); //We only care about dlls.
+        getLog().debug("Source directory: " + libDir);
+        getLog().debug("Destination directory: " + destination);
 
-	private void moveContent() throws MojoExecutionException, MojoFailureException, IOException
-	{
-		getLog().info("Copying to content folder");
+        File[] filesToCopy = libDir.listFiles(filefilter);
+        if(filesToCopy != null)
+            for(int i = 0; i < filesToCopy.length; i++)
+                copyToDirectory(filesToCopy[i], destination);
+    }
 
-		FilenameFilter filter = new FilenameFilter()
-		{
-			public boolean accept(File dir, String name)
-			{
-				try
-				{
-					if(isWinRT())
-						return name.endsWith(PDB_EXTENSION);
-				}
-				catch (Exception e)
-				{
-					e.printStackTrace(); //we can't escalate the exception out of this inner class
-					return false;
-				}
-				return name.endsWith(DLL_EXTENSION) || name.endsWith(PDB_EXTENSION);
-			}
-		};
+    private void moveContent() throws MojoExecutionException, MojoFailureException, IOException
+    {
+        getLog().info("Copying to content folder");
 
-		moveFiles(contentDirectory, filter);
-	}
+        FilenameFilter filter = new FilenameFilter()
+        {
+            public boolean accept(File dir, String name)
+            {
+                try
+                {
+                    if(isWinRT())
+                        return name.endsWith(PDB_EXTENSION);
+                }
+                catch (Exception e)
+                {
+                    e.printStackTrace(); //we can't escalate the exception out of this inner class
+                    return false;
+                }
+                return name.endsWith(DLL_EXTENSION) || name.endsWith(PDB_EXTENSION);
+            }
+        };
 
-	private void moveLibs() throws MojoExecutionException, MojoFailureException, IOException
-	{
-		getLog().info("Copying to lib folder");
+        moveFiles(contentDirectory, filter);
+    }
 
-		FilenameFilter filter = new FilenameFilter()
-		{
-			public boolean accept(File dir, String name)
-			{
-				return name.endsWith(DLL_EXTENSION) || name.endsWith(WINMD_EXTENSION);
-			}
-		};
+    private void moveLibs() throws MojoExecutionException, MojoFailureException, IOException
+    {
+        getLog().info("Copying to lib folder");
 
-		moveFiles(libDirectory, filter);
-	}
+        FilenameFilter filter = new FilenameFilter()
+        {
+            public boolean accept(File dir, String name)
+            {
+                return name.endsWith(DLL_EXTENSION) || name.endsWith(WINMD_EXTENSION);
+            }
+        };
 
-	private void createContentDirectory() throws MojoExecutionException
-	{
-		contentDirectory = new File(nugetDir, CONTENT_LOCATION);
-		getLog().info("Creating " + contentDirectory);
-		createDirectory(contentDirectory);
-	}
+        moveFiles(libDirectory, filter);
+    }
 
-	private void createLibDirectory() throws MojoExecutionException
-	{
-		libDirectory = new File(nugetDir, LIB_LOCATION + File.separator + WINRT_FRAMEWORK);
-		getLog().info("Creating " + libDirectory);
-		createDirectory(libDirectory);
-	}
+    private void createContentDirectory() throws MojoExecutionException
+    {
+        contentDirectory = new File(nugetDir, CONTENT_LOCATION);
+        getLog().info("Creating " + contentDirectory);
+        createDirectory(contentDirectory);
+    }
 
-	private String convertToPackageName(String artifactId)
-	{
-		String[] parts = artifactId.split("-");
-		StringBuilder builder = new StringBuilder();
-		for (int i = 0; i < parts.length; i++)
-		{
-			if(builder.length() > 0)
-				builder.append(".");
-			builder.append(Character.toUpperCase(parts[i].charAt(0)));
-			builder.append(parts[i].substring(1).trim());
-		}
-		return builder.toString();
-	}
+    private void createLibDirectory() throws MojoExecutionException
+    {
+        libDirectory = new File(nugetDir, LIB_LOCATION + File.separator + WINRT_FRAMEWORK);
+        getLog().info("Creating " + libDirectory);
+        createDirectory(libDirectory);
+    }
 
-	private void copyToCentralPackageSource() throws MojoExecutionException, IOException
-	{
-		getLog().info("Copying package to local package source");
-		File packageSource = new File(centralNugetPackageSource);
-		if(!packageSource.exists())
-			throw new MojoExecutionException("Package source " + centralNugetPackageSource + " does not exist");
-		getLog().debug("Package source: " +centralNugetPackageSource);
-		copyToDirectory(nupkgFile, packageSource);
-	}
+    private String convertToPackageName(String artifactId)
+    {
+        String[] parts = artifactId.split("-");
+        StringBuilder builder = new StringBuilder();
+        for (int i = 0; i < parts.length; i++)
+        {
+            if(builder.length() > 0)
+                builder.append(".");
+            builder.append(Character.toUpperCase(parts[i].charAt(0)));
+            builder.append(parts[i].substring(1).trim());
+        }
+        return builder.toString();
+    }
 
-	private void packNugetPackage() throws MojoExecutionException, IOException, InterruptedException
-	{
-		String command = NUGET_PACK_COMMAND.replace("<nuspecFile>", nuspecFile.getName());
-		runCommandLogOutput(command);
+    private void copyToCentralPackageSource() throws MojoExecutionException, IOException
+    {
+        getLog().info("Copying package to local package source");
+        File packageSource = new File(centralNugetPackageSource);
+        if(!packageSource.exists())
+            throw new MojoExecutionException("Package source " + centralNugetPackageSource + " does not exist");
+        getLog().debug("Package source: " +centralNugetPackageSource);
+        copyToDirectory(nupkgFile, packageSource);
+    }
 
-		nupkgFile = new File(nugetDir, packageName + "." + version + NUPKG_EXTENSION);
-		if(!nupkgFile.exists())
-			throw new MojoExecutionException("Failed to package " + nupkgFile.getName());
-	}
+    private void packNugetPackage() throws MojoExecutionException, IOException, InterruptedException
+    {
+        String command = NUGET_PACK_COMMAND.replace("<nuspecFile>", nuspecFile.getName());
+        runCommandLogOutput(command);
 
-	private void addScripts() throws MojoExecutionException, IOException, MojoFailureException
-	{
-		getLog().info("Adding install script");
-		File toolsDir = new File(nugetDir, TOOLS_LOCATION);
-		createDirectory(toolsDir);
+        nupkgFile = new File(nugetDir, packageName + "." + version + NUPKG_EXTENSION);
+        if(!nupkgFile.exists())
+            throw new MojoExecutionException("Failed to package " + nupkgFile.getName());
+    }
 
-		File installScript = new File(toolsDir, INSTALL_SCRIPT_NAME);
-		addContentToScript(installScript, NarUtil.class.getResourceAsStream(INSTALL_SCRIPT_NAME));
-		if(!installScript.exists())
-			throw new MojoExecutionException("Problem copying install script");
+    private void addScripts() throws MojoExecutionException, IOException, MojoFailureException
+    {
+        getLog().info("Adding install script");
+        File toolsDir = new File(nugetDir, TOOLS_LOCATION);
+        createDirectory(toolsDir);
 
-		File uninstallScript = new File(toolsDir, UNINSTALL_SCRIPT_NAME);
-		addContentToScript(uninstallScript, NarUtil.class.getResourceAsStream(UNINSTALL_SCRIPT_NAME));
-		if(!uninstallScript.exists())
-			throw new MojoExecutionException("Problem copying uninstall script");
-	}
+        File installScript = new File(toolsDir, INSTALL_SCRIPT_NAME);
+        addContentToScript(installScript, NarUtil.class.getResourceAsStream(INSTALL_SCRIPT_NAME));
+        if(!installScript.exists())
+            throw new MojoExecutionException("Problem copying install script");
 
-	private void addContentToScript(File installScriptOutput, InputStream installScriptResourceStream)
-			throws IOException, MojoExecutionException, MojoFailureException {
-		BufferedReader scriptInput = null;
-		BufferedWriter scriptOutput = null;
-		try
-		{
-			scriptInput = new BufferedReader(new InputStreamReader(installScriptResourceStream));
-			scriptOutput = new BufferedWriter(new FileWriter(installScriptOutput));
+        File uninstallScript = new File(toolsDir, UNINSTALL_SCRIPT_NAME);
+        addContentToScript(uninstallScript, NarUtil.class.getResourceAsStream(UNINSTALL_SCRIPT_NAME));
+        if(!uninstallScript.exists())
+            throw new MojoExecutionException("Problem copying uninstall script");
+    }
 
-			String line = null;
-			while (( line = scriptInput.readLine()) != null)
-			{
-				scriptOutput.write(replacePlaceholders(line));
-				scriptOutput.write(System.getProperty("line.separator"));
-			}
-			scriptOutput.flush();
-		}
-		finally
-		{
-			if(scriptInput != null)
-				scriptInput.close();
-			if(scriptOutput != null)
-				scriptOutput.close();
-		}
-	}
+    private void addContentToScript(File installScriptOutput, InputStream installScriptResourceStream)
+            throws IOException, MojoExecutionException, MojoFailureException {
+        BufferedReader scriptInput = null;
+        BufferedWriter scriptOutput = null;
+        try
+        {
+            scriptInput = new BufferedReader(new InputStreamReader(installScriptResourceStream));
+            scriptOutput = new BufferedWriter(new FileWriter(installScriptOutput));
 
-	private String replacePlaceholders(String line) throws MojoExecutionException, MojoFailureException
-	{
-		if(!line.contains(CONTENT_PLACEHOLDER))
-			return line;
-		String content;
-		String[] contentNames = contentDirectory.list();
-		if(contentNames.length == 0)
-			content = EMPTY_ARRAY;
-		else
-		{
-			StringBuilder builder = new StringBuilder();
-			for(int i = 0; i < contentNames.length; i++)
-			{
-				builder.append("\"" + contentNames[i] + "\"");
-				if(i < contentNames.length - 1)
-					builder.append(",");
-			}
-			content = builder.toString();
-		}
-		getLog().debug("Setting content to " + content);
-		return line.replaceAll(CONTENT_PLACEHOLDER, content);
-	}
+            String line = null;
+            while (( line = scriptInput.readLine()) != null)
+            {
+                scriptOutput.write(replacePlaceholders(line));
+                scriptOutput.write(System.getProperty("line.separator"));
+            }
+            scriptOutput.flush();
+        }
+        finally
+        {
+            if(scriptInput != null)
+                scriptInput.close();
+            if(scriptOutput != null)
+                scriptOutput.close();
+        }
+    }
 
-	private void populateNuspecFile() throws MojoExecutionException, TransformerException, MojoFailureException
-	{
-		getLog().info("Populating " + nuspecFile);
-		setElementContents(VERSION_TAG, version);
-		setElementContents(OWNERS_TAG, OWNER);
-		setElementContents(AUTHORS_TAG, OWNER);
-		removeElement(LICENSE_URL_TAG);
-		removeElement(PROJECT_URL_TAG);
-		removeElement(ICON_URL_TAG);
-		setElementContents(DESCRIPTION_TAG, getMavenProject().getDescription());
-		removeElement(RELEASE_NOTES_TAG);
-		setElementContents(TAGS_TAG, PRODUCT_NAME);
-		setDependencies();
-		if(isWinRT())
-			addReference();
+    private String replacePlaceholders(String line) throws MojoExecutionException, MojoFailureException
+    {
+        if(!line.contains(CONTENT_PLACEHOLDER))
+            return line;
+        String content;
+        String[] contentNames = contentDirectory.list();
+        if(contentNames.length == 0)
+            content = EMPTY_ARRAY;
+        else
+        {
+            StringBuilder builder = new StringBuilder();
+            for(int i = 0; i < contentNames.length; i++)
+            {
+                builder.append("\"" + contentNames[i] + "\"");
+                if(i < contentNames.length - 1)
+                    builder.append(",");
+            }
+            content = builder.toString();
+        }
+        getLog().debug("Setting content to " + content);
+        return line.replaceAll(CONTENT_PLACEHOLDER, content);
+    }
 
-		saveNuspec();
-	}
+    private void populateNuspecFile() throws MojoExecutionException, TransformerException, MojoFailureException
+    {
+        getLog().info("Populating " + nuspecFile);
+        setElementContents(VERSION_TAG, version);
+        setElementContents(OWNERS_TAG, OWNER);
+        setElementContents(AUTHORS_TAG, OWNER);
+        removeElement(LICENSE_URL_TAG);
+        removeElement(PROJECT_URL_TAG);
+        removeElement(ICON_URL_TAG);
+        setElementContents(DESCRIPTION_TAG, getMavenProject().getDescription());
+        removeElement(RELEASE_NOTES_TAG);
+        setElementContents(TAGS_TAG, PRODUCT_NAME);
+        setDependencies();
+        if(isWinRT())
+            addReference();
 
-	private void setDependencies() throws MojoExecutionException, MojoFailureException
-	{
-		List dependencies = getNarManager().getDirectNarDependencies(Artifact.SCOPE_COMPILE);
-		int numDependencies = dependencies.size();
-		getLog().debug("Adding " + numDependencies + " dependencies");
-		if(numDependencies == 0)
-		{
-			removeElement(DEPENDENCIES_TAG);
-			return;
-		}
-		removeElement(DEPENDENCY_TAG);
-		for(Iterator i = dependencies.iterator(); i.hasNext();)
-		{
-			NarArtifact dependency = (NarArtifact) i.next();
-			String dependencyName = dependency.getArtifactId();
+        saveNuspec();
+    }
 
-			if(!dependency.getNarInfo().getBinding(getAOL(), "").equals(SHARED))
-			{
-				getLog().debug("Not adding dependency " + dependencyName + " as it has no dlls");
-				continue;
-			}
+    private void setDependencies() throws MojoExecutionException, MojoFailureException
+    {
+        List dependencies;
 
-			String nugetDependencyName = convertToPackageName(dependencyName);
-			getLog().debug("Adding dependency " + dependencyName + " as " + nugetDependencyName);
-			Element dependencyElement = nuspecDocument.createElement(DEPENDENCY_TAG);
-			dependencyElement.setAttribute(ID_ATTRIBUTE, nugetDependencyName);
-			dependencyElement.setAttribute(VERSION_ATTRIBUTE, getNugetMajorMinorVersion(dependency.getVersion()));
-			getNamedNode(DEPENDENCIES_TAG).appendChild(dependencyElement);
-		}
-	}
+        if(narArtifactId == null)
+        {
+            dependencies = getNarManager().getDirectNarDependencies(Artifact.SCOPE_COMPILE);
+        }
+        else
+        { //include transitive dependencies
+            dependencies = getNarManager().getNarDependencies(Artifact.SCOPE_COMPILE);
+        }
+        
 
-	private void addReference() throws MojoExecutionException, MojoFailureException
-	{
-		String referenceName = getOutput(getAOL()) + WINMD_EXTENSION;
-		getLog().debug("Adding " + referenceName + " as reference");
-		Element referenceElement = nuspecDocument.createElement(REFERENCE_TAG);
-		referenceElement.setAttribute(FILE_ATTRIBUTE, referenceName);
-		Element parent = nuspecDocument.createElement(REFERENCES_TAG);
-		parent.appendChild(referenceElement);
-		getNamedNode(METADATA_TAG).appendChild(parent);
-	}
+        int numDependencies = dependencies.size();
+        getLog().debug("Adding " + numDependencies + " dependencies");
+        if(numDependencies == 0)
+        {
+            removeElement(DEPENDENCIES_TAG);
+            return;
+        }
+        removeElement(DEPENDENCY_TAG);
+        for(Iterator i = dependencies.iterator(); i.hasNext();)
+        {
+            NarArtifact dependency = (NarArtifact) i.next();
+            String dependencyName = dependency.getArtifactId();
 
-	private void removeElement(String tagname) throws MojoExecutionException
-	{
-		getLog().debug("Removing element " + tagname);
-		Node node = getNamedNode(tagname);
-		node.getParentNode().removeChild(node);
-	}
+            if(!dependency.getNarInfo().getBinding(getAOL(), "").equals(SHARED))
+            {
+                getLog().debug("Not adding dependency " + dependencyName + " as it has no dlls");
+                continue;
+            }
 
-	private void saveNuspec() throws TransformerException
-	{
+            if(dependency.getArtifactId().equals(narArtifactId))
+            {
+                getLog().debug("Not adding dependency " + dependencyName + " because this is the " +
+                        "artifact we are using to create the nuGet package");
+                continue;
+            }
+
+            boolean generatesNugetPackages = dependency.getNarInfo().isCreateNuget(getAOL());
+
+            if(!generatesNugetPackages)
+            {
+                getLog().debug("Not adding dependency " + dependencyName + " as it does not generate a Nuget package");
+                continue;
+            }
+
+            String nugetDependencyName = convertToPackageName(dependencyName);
+            getLog().debug("Adding dependency " + dependencyName + " as " + nugetDependencyName);
+            Element dependencyElement = nuspecDocument.createElement(DEPENDENCY_TAG);
+            dependencyElement.setAttribute(ID_ATTRIBUTE, nugetDependencyName);
+            dependencyElement.setAttribute(VERSION_ATTRIBUTE, getNugetMajorMinorVersion(dependency.getVersion()));
+            getNamedNode(DEPENDENCIES_TAG).appendChild(dependencyElement);
+        }
+    }
+
+    private void addReference() throws MojoExecutionException, MojoFailureException
+    {
+        String referenceName = getOutput(getAOL()) + WINMD_EXTENSION;
+        getLog().debug("Adding " + referenceName + " as reference");
+        Element referenceElement = nuspecDocument.createElement(REFERENCE_TAG);
+        referenceElement.setAttribute(FILE_ATTRIBUTE, referenceName);
+        Element parent = nuspecDocument.createElement(REFERENCES_TAG);
+        parent.appendChild(referenceElement);
+        getNamedNode(METADATA_TAG).appendChild(parent);
+    }
+
+    private void removeElement(String tagname) throws MojoExecutionException
+    {
+        getLog().debug("Removing element " + tagname);
+        Node node = getNamedNode(tagname);
+        node.getParentNode().removeChild(node);
+    }
+
+    private void saveNuspec() throws TransformerException
+    {
         Source source = new DOMSource(nuspecDocument);
         Result result = new StreamResult(nuspecFile);
 
         Transformer transformer = TransformerFactory.newInstance().newTransformer();
         transformer.transform(source, result);
-	}
+    }
 
-	private void setElementContents(String tagname, String contents) throws MojoExecutionException
-	{
-		getLog().debug("Setting contents of " + tagname + " to " + contents);
-		Node node = getNamedNode(tagname);
-		node.getFirstChild().setNodeValue(contents);
-	}
+    private void setElementContents(String tagname, String contents) throws MojoExecutionException
+    {
+        getLog().debug("Setting contents of " + tagname + " to " + contents);
+        Node node = getNamedNode(tagname);
+        node.getFirstChild().setNodeValue(contents);
+    }
 
-	private Node getNamedNode(String tagname) throws MojoExecutionException {
-		NodeList nodes = nuspecDocument.getElementsByTagName(tagname);
-		if(nodes.getLength() == 0)
-			throw new MojoExecutionException("No element named " + tagname + " present in " + nuspecFile);
-		if(nodes.getLength() > 1)
-			throw new MojoExecutionException("Multiple elements named " + tagname + " present in " + nuspecFile);
-		return nodes.item(0);
-	}
+    private Node getNamedNode(String tagname) throws MojoExecutionException {
+        NodeList nodes = nuspecDocument.getElementsByTagName(tagname);
+        if(nodes.getLength() == 0)
+            throw new MojoExecutionException("No element named " + tagname + " present in " + nuspecFile);
+        if(nodes.getLength() > 1)
+            throw new MojoExecutionException("Multiple elements named " + tagname + " present in " + nuspecFile);
+        return nodes.item(0);
+    }
 
-	private String getNugetVersion() throws IOException, InterruptedException
-	{
-		getLog().info("Calculating NuGet version number");
-		String version = getMavenProject().getVersion();
-		String majorMinor = getNugetMajorMinorVersion(version);
-		String build;
-		String revision;
-		if(getSnapshotIndex(version) == -1)
-		{
-			build = "2"; //indicates release version (must be higher than snapshot version)
-			revision = "0";
-		}
-		else
-		{
-			build = "1"; //indicates snapshot
-			revision = getBuildNumber(majorMinor, build);
-		}
-		return majorMinor + "." + build + "." + revision;
-	}
+    private String getNugetVersion() throws IOException, InterruptedException
+    {
+        getLog().info("Calculating NuGet version number");
+        String version = getMavenProject().getVersion();
+        String majorMinor = getNugetMajorMinorVersion(version);
+        String build;
+        String revision;
+        if(getSnapshotIndex(version) == -1)
+        {
+            build = "2"; //indicates release version (must be higher than snapshot version)
+            revision = "0";
+        }
+        else
+        {
+            build = "1"; //indicates snapshot
+            revision = getBuildNumber(majorMinor, build);
+        }
+        return majorMinor + "." + build + "." + revision;
+    }
 
-	private String getBuildNumber(String majorMinor, String build) throws IOException, InterruptedException
-	{
-		String revision = "0"; //Default value for first snapshot package
-		CommandResult result = runCommand(NUGET_LIST_COMMAND + " " + centralNugetPackageSource);
+    private String getBuildNumber(String majorMinor, String build) throws IOException, InterruptedException
+    {
+        String revision = "0"; //Default value for first snapshot package
+        CommandResult result = runCommand(NUGET_LIST_COMMAND + " " + centralNugetPackageSource);
 
-		for(Iterator it = result.output.iterator(); it.hasNext();)
-		{
-			String line  = (String)it.next();
-			getLog().debug(line);
-			if(!line.startsWith(packageName))
-				continue;
-			String latestVersion = line.substring(packageName.length() + 1);
-			if(!latestVersion.startsWith(majorMinor))
-				break;
-			String buildRevision = latestVersion.substring(majorMinor.length() + 1);
-			if(!buildRevision.startsWith(build))
-				break;
-			int latestRevision = Integer.parseInt(buildRevision.substring(build.length() + 1));
-			revision = Integer.toString(latestRevision + 1);
-		}
-		return revision;
-	}
+        for(Iterator it = result.output.iterator(); it.hasNext();)
+        {
+            String line  = (String)it.next();
+            getLog().debug(line);
+            if(!line.startsWith(packageName))
+                continue;
+            String latestVersion = line.substring(packageName.length() + 1);
+            if(!latestVersion.startsWith(majorMinor))
+                break;
+            String buildRevision = latestVersion.substring(majorMinor.length() + 1);
+            if(!buildRevision.startsWith(build))
+                break;
+            int latestRevision = Integer.parseInt(buildRevision.substring(build.length() + 1));
+            revision = Integer.toString(latestRevision + 1);
+        }
+        return revision;
+    }
 
-	private String getNugetMajorMinorVersion(String version)
-	{
-		int snapshotIndex = getSnapshotIndex(version);
-		if(snapshotIndex != -1)
-			version = version.substring(0, snapshotIndex);
+    private String getNugetMajorMinorVersion(String version)
+    {
+        int snapshotIndex = getSnapshotIndex(version);
+        if(snapshotIndex != -1)
+            version = version.substring(0, snapshotIndex);
 
-		return version;
-	}
+        return version;
+    }
 
-	private int getSnapshotIndex(String version)
-	{
-		return version.indexOf(SNAPSHOT_SUFFIX);
-	}
+    private int getSnapshotIndex(String version)
+    {
+        return version.indexOf(SNAPSHOT_SUFFIX);
+    }
 
-	private void copyToDirectory(File file, File destinationDir) throws IOException
-	{
-		getLog().debug("Copying " + file.getName());
-		FileUtils.copyFileToDirectory(file, destinationDir);
-	}
+    private void copyToDirectory(File file, File destinationDir) throws IOException
+    {
+        getLog().debug("Copying " + file.getName());
+        FileUtils.copyFileToDirectory(file, destinationDir);
+    }
 
-	private boolean isWinRT() throws MojoExecutionException, MojoFailureException
-	{
-		return getNarInfo().isTargetWinRT(getAOL());
-	}
+    private boolean isWinRT() throws MojoExecutionException, MojoFailureException
+    {
+        return getNarInfo().isTargetWinRT(getAOL());
+    }
 
-	private void createTemplateNuspecFile() throws IOException, InterruptedException, MojoExecutionException, SAXException, ParserConfigurationException
-	{
-		String command = NUGET_SPEC_COMMAND + " " + packageName;
-		runCommandLogOutput(command);
+    private void createTemplateNuspecFile() throws IOException, InterruptedException, MojoExecutionException, SAXException, ParserConfigurationException
+    {
+        String command = NUGET_SPEC_COMMAND + " " + packageName;
+        runCommandLogOutput(command);
 
-		nuspecFile = new File(nugetDir, packageName + NUSPEC_EXTENSION);
-		if (!nuspecFile.exists())
-			throw new MojoExecutionException("Failed to create " + nuspecFile.getName());
+        nuspecFile = new File(nugetDir, packageName + NUSPEC_EXTENSION);
+        if (!nuspecFile.exists())
+            throw new MojoExecutionException("Failed to create " + nuspecFile.getName());
 
-		createNuspecDocument();
-	}
+        createNuspecDocument();
+    }
 
-	private void runCommandLogOutput(String command) throws IOException,
-			InterruptedException, MojoExecutionException
-	{
-		CommandResult result = runCommand(command);
+    private void runCommandLogOutput(String command) throws IOException,
+            InterruptedException, MojoExecutionException
+    {
+        CommandResult result = runCommand(command);
 
-		for(Iterator it = result.output.iterator(); it.hasNext();)
-			getLog().debug((String)it.next());
+        for(Iterator it = result.output.iterator(); it.hasNext();)
+            getLog().debug((String)it.next());
 
-		if(result.exitCode != 0)
-			throw new MojoExecutionException("Problem running command " + command + ". Exit code: " + result.exitCode);
-	}
+        if(result.exitCode != 0)
+            throw new MojoExecutionException("Problem running command " + command + ". Exit code: " + result.exitCode);
+    }
 
-	private CommandResult runCommand(String command) throws IOException, InterruptedException
-	{
-		getLog().info("Running command: " + command);
+    private CommandResult runCommand(String command) throws IOException, InterruptedException
+    {
+        getLog().info("Running command: " + command);
 
-		ProcessBuilder builder = new ProcessBuilder(command.split(" "));
-		builder.directory(nugetDir);
-		builder.redirectErrorStream(true);
+        ProcessBuilder builder = new ProcessBuilder(command.split(" "));
+        builder.directory(nugetDir);
+        builder.redirectErrorStream(true);
 
-		Process specProcess = builder.start();
-		CommandResult result = new CommandResult();
-		StreamEater eater = new StreamEater(specProcess.getInputStream(), result.output);
-		eater.start();
+        Process specProcess = builder.start();
+        CommandResult result = new CommandResult();
+        StreamEater eater = new StreamEater(specProcess.getInputStream(), result.output);
+        eater.start();
 
-		result.exitCode = specProcess.waitFor();
+        result.exitCode = specProcess.waitFor();
 
-		getLog().debug("Command " + command + " returned: " + result.exitCode);
+        getLog().debug("Command " + command + " returned: " + result.exitCode);
 
-		return result;
-	}
+        return result;
+    }
 
-	private void createNuspecDocument() throws SAXException, IOException, ParserConfigurationException
-	{
-		nuspecDocument = DocumentBuilderFactory.newInstance().newDocumentBuilder().parse(nuspecFile);
-	}
+    private void createNuspecDocument() throws SAXException, IOException, ParserConfigurationException
+    {
+        nuspecDocument = DocumentBuilderFactory.newInstance().newDocumentBuilder().parse(nuspecFile);
+    }
 
-	private void cleanNugetDirectory() throws MojoExecutionException, IOException
-	{
-		nugetDir = new File(getOutputDirectory(), NUGET_LOCATION);
-		getLog().info("Cleaning " + nugetDir);
-		if(nugetDir.exists())
-			if(!deleteDirectory(nugetDir))
-				throw new MojoExecutionException("Could not delete " + nugetDir);
-		createDirectory(nugetDir);
-	}
+    private void cleanNugetDirectory() throws MojoExecutionException, IOException
+    {
+        nugetDir = new File(getOutputDirectory(), NUGET_LOCATION);
+        getLog().info("Cleaning " + nugetDir);
+        if(nugetDir.exists())
+            if(!deleteDirectory(nugetDir))
+                throw new MojoExecutionException("Could not delete " + nugetDir);
+        createDirectory(nugetDir);
+    }
 
-	private void createDirectory(File directory) throws MojoExecutionException
-	{
-		directory.mkdirs();
-		if(!directory.exists())
-			throw new MojoExecutionException("Could not create directory " + directory);
-	}
+    private void createDirectory(File directory) throws MojoExecutionException
+    {
+        directory.mkdirs();
+        if(!directory.exists())
+            throw new MojoExecutionException("Could not create directory " + directory);
+    }
 
-	private boolean deleteDirectory(File directory) throws IOException
-	{
-		FileUtils.deleteDirectory(directory);
-		return !directory.exists();
-	}
+    private boolean deleteDirectory(File directory) throws IOException
+    {
+        FileUtils.deleteDirectory(directory);
+        return !directory.exists();
+    }
 
     private class CommandResult
     {
