@@ -9,7 +9,7 @@ public class VisualStudioProjectTemplateModifier extends
     private static final String RUNTIME_STATIC = "static";
     private static final String RUNTIME_DYNAMIC = "dynamic";
     private static final String PCHHEADERINCLUDE = "PCHHEADERFILE";
-    private String narPrecompiledHeaderFilePath;
+    private String precompiledHeaderFilePath = "";
     private String projectGUID;
     private String projectName;
     private ProjectInfo info;
@@ -21,7 +21,7 @@ public class VisualStudioProjectTemplateModifier extends
         this.projectGUID = projectGUID;
         this.projectName = projectName;
         this.info = info;
-        this.narPrecompiledHeaderFilePath = narPrecompiledHeaderFilePath;
+        this.precompiledHeaderFilePath = narPrecompiledHeaderFilePath;
     }
 
     protected String replacePlaceholders(String contents) throws MojoExecutionException
@@ -73,23 +73,26 @@ public class VisualStudioProjectTemplateModifier extends
     {
         if(info.usePch())
         {
-            String precompiledHeaderFile = narPrecompiledHeaderFilePath + File.separator + info.getPchFileName() + ".h";
-            File file = new File(precompiledHeaderFile);
-            if (!file.exists())
-                throw new MojoExecutionException("Please specify a valid path to the pch header file using maven option -DnarPrecompiledHeader.path\r\nRelative paths should start from the project base directory.");
-            else
+            if (!precompiledHeaderFilePath.equals(""))
             {
-                // Relative path problem, file exists check basedir is two directories higher than the project location
-                if (precompiledHeaderFile.startsWith(".."))
+                String precompiledHeaderFile = precompiledHeaderFilePath + File.separator + info.getPchFileName() + ".h";
+                File file = new File(precompiledHeaderFile);
+                if (!file.exists())
+                    throw new MojoExecutionException("Please specify a valid path to the pch header file using maven option -DnarPrecompiledHeader.path\r\nRelative paths should start from the project base directory.");
+                else
                 {
-                    precompiledHeaderFile = "..\\..\\" + precompiledHeaderFile;
+                    // Relative path problem, file exists check basedir is two directories higher than the project location
+                    if (precompiledHeaderFile.startsWith(".."))
+                    {
+                        precompiledHeaderFile = "..\\..\\" + precompiledHeaderFile;
+                    }
+                    StringBuilder builder = new StringBuilder();
+                    builder.append("\r\ncopy ");
+                    builder.append(precompiledHeaderFile);
+                    builder.append(" ");
+                    builder.append(info.getRelativePchDirectory(true) + File.separator + info.getPchFileName() + ".h");
+                    return builder.toString();
                 }
-                StringBuilder builder = new StringBuilder();
-                builder.append("\r\ncopy ");
-                builder.append(precompiledHeaderFile);
-                builder.append(" ");
-                builder.append(info.getRelativePchDirectory(true) + File.separator + info.getPchFileName() + ".h");
-                return builder.toString();
             }
         }
         return "";
@@ -159,7 +162,12 @@ public class VisualStudioProjectTemplateModifier extends
 
     private String getDefinesAsString()
     {
-        return convertToStringUsingPrefix(info.getDefines(), "/D ", " ") + "/D" + PCHHEADERINCLUDE + " ";
+        String pchHeader = "";
+        if (!precompiledHeaderFilePath.equals(""))
+        {
+            pchHeader = "/D" + PCHHEADERINCLUDE;
+        }
+        return convertToStringUsingPrefix(info.getDefines(), "/D ", " ") + pchHeader + " ";
     }
 
     private String getLibraryPathsAsString() throws MojoExecutionException

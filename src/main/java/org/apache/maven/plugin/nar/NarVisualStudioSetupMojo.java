@@ -39,10 +39,9 @@ public class NarVisualStudioSetupMojo extends AbstractCompileMojo {
     /**
      * Path to the precompiled headers header file.
      *
-     * @parameter expression="${narPrecompiledHeader.path}" default-value="..\\..\\precompiledheaders-1.5\\amalgam\\src\\main\\include"
-     * @required
+     * @parameter expression="${narPrecompiledHeader.path}"
      */
-    private String narPrecompiledHeaderFilePath;
+    private String narPrecompiledHeaderFilePath = "";
 
     private VS2012Project mainProject;
 
