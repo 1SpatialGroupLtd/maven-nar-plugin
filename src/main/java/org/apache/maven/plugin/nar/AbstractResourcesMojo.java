@@ -97,7 +97,7 @@ public abstract class AbstractResourcesMojo
         int copied = 0;
 
         // copy binaries
-        File binDir = File(new File( srcDir, resourceBinDir ), getLayout().getConfiguration());
+        File binDir = new File(new File( srcDir, resourceBinDir ), getLayout().getConfiguration());
         if ( binDir.exists() )
         {
             File binDstDir =
