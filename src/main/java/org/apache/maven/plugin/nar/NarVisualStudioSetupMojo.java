@@ -41,7 +41,7 @@ public class NarVisualStudioSetupMojo extends AbstractCompileMojo {
      *
      * @parameter expression="${narPrecompiledHeader.path}"
      */
-    private String narPrecompiledHeaderFilePath = "";
+    private String narPrecompiledHeaderFilePath;
 
     private VS2012Project mainProject;
 

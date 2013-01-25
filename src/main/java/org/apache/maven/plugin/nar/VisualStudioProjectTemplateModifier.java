@@ -9,7 +9,7 @@ public class VisualStudioProjectTemplateModifier extends
     private static final String RUNTIME_STATIC = "static";
     private static final String RUNTIME_DYNAMIC = "dynamic";
     private static final String PCHHEADERINCLUDE = "PCHHEADERFILE";
-    private String precompiledHeaderFilePath = "";
+    private String precompiledHeaderFilePath;
     private String projectGUID;
     private String projectName;
     private ProjectInfo info;
@@ -73,7 +73,7 @@ public class VisualStudioProjectTemplateModifier extends
     {
         if(info.usePch())
         {
-            if (!precompiledHeaderFilePath.equals(""))
+            if (precompiledHeaderFilePath != null)
             {
                 String precompiledHeaderFile = precompiledHeaderFilePath + File.separator + info.getPchFileName() + ".h";
                 File file = new File(precompiledHeaderFile);
@@ -81,7 +81,8 @@ public class VisualStudioProjectTemplateModifier extends
                     throw new MojoExecutionException("Please specify a valid path to the pch header file using maven option -DnarPrecompiledHeader.path\r\nRelative paths should start from the project base directory.");
                 else
                 {
-                    // Relative path problem, file exists check basedir is two directories higher than the project location
+                    // Relative path problem, the VS project location is two directories lower than the pom, from where it checks for the file.
+                    // Since this command will be run from the VS project, need the path to aim two directories higher.
                     if (precompiledHeaderFile.startsWith(".."))
                     {
                         precompiledHeaderFile = "..\\..\\" + precompiledHeaderFile;
@@ -163,7 +164,7 @@ public class VisualStudioProjectTemplateModifier extends
     private String getDefinesAsString()
     {
         String pchHeader = "";
-        if (!precompiledHeaderFilePath.equals(""))
+        if (precompiledHeaderFilePath != null)
         {
             pchHeader = "/D" + PCHHEADERINCLUDE;
         }
