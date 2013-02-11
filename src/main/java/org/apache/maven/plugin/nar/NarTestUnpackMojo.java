@@ -50,7 +50,7 @@ public class NarTestUnpackMojo
             if (getTestExcludeDependencies().contains(narDependency.getArtifactId()))
             {
                 getLog().debug("Excluding: " + narDependency.getArtifactId());
-                narArtifacts.remove(narDependency);
+                i.remove();
             }
         }
         if ( classifiers == null )
