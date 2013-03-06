@@ -153,7 +153,7 @@ public class NarVisualStudioSetupMojo extends AbstractCompileMojo {
             if (getTestExcludeDependencies().contains(narDependency.getArtifactId()))
             {
                 getLog().debug("Excluding dependency: " + narDependency.getArtifactId());
-                dependencies.remove(narDependency);
+                i.remove();
             }
         }
         reportOnDependencies("Found test dependencies:", dependencies);
