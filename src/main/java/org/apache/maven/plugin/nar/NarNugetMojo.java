@@ -460,22 +460,11 @@ public class NarNugetMojo extends AbstractCompileMojo
         getLog().info("Calculating NuGet version number");
         String version = getMavenProject().getVersion();
         String majorMinor = getNugetMajorMinorVersion(version);
-        String build;
-        String revision;
-        if(getSnapshotIndex(version) == -1)
-        {
-            build = "2"; //indicates release version (must be higher than snapshot version)
-            revision = "0";
-        }
-        else
-        {
-            build = "1"; //indicates snapshot
-            revision = getBuildNumber(majorMinor, build);
-        }
-        return majorMinor + "." + build + "." + revision;
+        String revision = getBuildNumber(majorMinor);
+        return majorMinor + "." + revision;
     }
 
-    private String getBuildNumber(String majorMinor, String build) throws IOException, InterruptedException
+    private String getBuildNumber(String majorMinor) throws IOException, InterruptedException
     {
         String revision = "0"; //Default value for first snapshot package
         CommandResult result = runCommand(NUGET_LIST_COMMAND + " " + centralNugetPackageSource);
@@ -490,9 +479,7 @@ public class NarNugetMojo extends AbstractCompileMojo
             if(!latestVersion.startsWith(majorMinor))
                 break;
             String buildRevision = latestVersion.substring(majorMinor.length() + 1);
-            if(!buildRevision.startsWith(build))
-                break;
-            int latestRevision = Integer.parseInt(buildRevision.substring(build.length() + 1));
+            int latestRevision = Integer.parseInt(buildRevision);
             revision = Integer.toString(latestRevision + 1);
         }
         return revision;
