@@ -1,15 +1,32 @@
-param($installPath, $toolsPath, $package, $project)
+param
+(
+	$installPath,
+	$toolsPath, 
+	$package, 
+	$project
+)
 
-$contentArray = <contentPlaceholder>
+# Import the utilities
+$oldPSModulePath = $env:PSModulePath
+$env:PSModulePath = $env:PSModulePath + ';' + $toolsPath
+Import-Module InstallUtilities
 
-foreach ($content in $contentArray)
+try
 {
-	$item = $project.ProjectItems.Item($content)
-
-	if($Item)
-	{
-		# set 'Copy To Output Directory' to 'Copy if newer'
-		$copyToOutput = $item.Properties.Item("CopyToOutputDirectory")
-		$copyToOutput.Value = 2
-	}
+	$frameworkFolder = Get-FrameworkFolder $project
+	$content = Get-NativeFiles $installPath $frameworkFolder
+	Add-AsContent $content $project
 }
+catch
+{
+	Write-Warning $_
+	Undo-Install $package $project
+}
+
+# And unimport them (if this has not already happened
+# (e.g. in exception circumstances)
+if ((Get-Module |? {$_.Name -eq "InstallUtilities"}))
+{
+	Remove-Module InstallUtilities
+}
+$env:PSModulePath = $oldPSModulePath

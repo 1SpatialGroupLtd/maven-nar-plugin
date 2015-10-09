@@ -32,7 +32,7 @@
   <name>Maven NAR Plugin</name>
   <description>
     This plugin compiles native code and publishes native artifacts in the for of nar files.
-	This is a fork of http://duns.github.com/maven-nar-plugin/ with some bugfixes and enhamcements
+    This is a fork of http://duns.github.com/maven-nar-plugin/ with some bugfixes and enhamcements
   </description>
   <url>https://github.com/1spatial/maven-nar-plugin</url>
 
@@ -289,7 +289,7 @@
                 <setupInclude>it0020-lib-3rdparty/pom.xml</setupInclude>
               </setupIncludes>
               <pomIncludes>
-              	<pomInclude>*/pom.xml</pomInclude>
+                <pomInclude>*/pom.xml</pomInclude>
               </pomIncludes>
               <pomExcludes>
 <!-- Include to handle mvn 3 problem not finding parent for a dependency

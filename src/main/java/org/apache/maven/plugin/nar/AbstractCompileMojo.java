@@ -344,7 +344,7 @@ public abstract class AbstractCompileMojo
                 getLog(),
                 propertiesFile );
 
-            narInfo.addLibrary(getAOL(), output);
+            narInfo.setLibrary(getAOL(), output);
 
             Set pchNames = new HashSet();
             //Add all the source files from pch libraries to a list
@@ -383,7 +383,7 @@ public abstract class AbstractCompileMojo
     }
 
     /**
-     * Saves nar info to file a s a properties file (nar.properties)
+     * Saves nar info to file as a properties file (nar.properties)
      * under target/classes/META-INF/nar/<groupId>/<artifactId>
      * @param narInfo the info to write
      * @throws MojoExecutionException

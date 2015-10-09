@@ -1,13 +1,31 @@
-param($installPath, $toolsPath, $package, $project)
+param
+(
+	$installPath,
+	$toolsPath, 
+	$package, 
+	$project
+)
 
-$contentArray = <contentPlaceholder>
+# Import the utilities
+$oldPSModulePath = $env:PSModulePath
+$env:PSModulePath = $env:PSModulePath + ';' + $toolsPath
+Import-Module InstallUtilities
 
-foreach ($content in $contentArray)
+try
 {
-	$Item = $project.ProjectItems.Item($content)
-
-	if($Item)
-	{
-		$Item.Remove()
-	}
+	$frameworkFolder = Get-FrameworkFolder $project
+	$content = Get-NativeFiles $installPath $frameworkFolder
+	Remove-Content $content $project
 }
+catch
+{
+	Write-Warning $_
+}
+
+# And unimport them (if this has not already happened
+# (e.g. in exception circumstances)
+if ((Get-Module |? {$_.Name -eq "InstallUtilities"}))
+{
+	Remove-Module InstallUtilities
+}
+$env:PSModulePath = $oldPSModulePath

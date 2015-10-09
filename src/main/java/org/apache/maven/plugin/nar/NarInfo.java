@@ -250,6 +250,11 @@ public class NarInfo
             setProperty( aol, LIBS_NAMES, currentLibs + ", " + libName );
     }
 
+    public final void setLibrary(AOL aol, String libName)
+    {
+		setProperty( aol, LIBS_NAMES, libName );
+    }
+
     public final void setTargetWinRT(AOL aol, boolean targetWinRT)
     {
         setProperty(aol, LIBS_WINRT, Boolean.toString(targetWinRT));

@@ -45,19 +45,22 @@ import org.xml.sax.SAXException;
  */
 public class NarNugetMojo extends AbstractCompileMojo
 {
-    private static final String NUGET_LIST_COMMAND = "NuGet.exe list -Source";
+    private static final String NUGET_LIST_COMMAND = "NuGet.exe list -allversions -Source";
     private static final String CONTENT_PLACEHOLDER = "<contentPlaceholder>";
     private static final String EMPTY_ARRAY = "@()";
     private static final String SHARED = "shared";
     private static final String NUPKG_EXTENSION = ".nupkg";
-    private static final String NUGET_PACK_COMMAND = "NuGet.exe pack <nuspecFile> -NoPackageAnalysis";
+    private static final String NUGET_PACK_COMMAND = "NuGet.exe pack <nuspecFile>";
     private static final String TOOLS_LOCATION = "tools";
-    private static final String INSTALL_SCRIPT_NAME = "install.ps1";
+    private static final String INSTALL_SCRIPT_NAME = "Install.ps1";
     private static final String VERSION_ATTRIBUTE = "version";
     private static final String ID_ATTRIBUTE = "id";
-    private static final String DEPENDENCY_TAG = "dependency";
     private static final String DEPENDENCIES_TAG = "dependencies";
     private static final String REFERENCES_TAG = "references";
+    private static final String GROUP_TAG = "group";
+    private static final String TARGET_FRAMEWORK_ATTRIBUTE = "targetFramework";
+    private static final String DOT_NET_TARGET_FRAMEWORK = "Net45";
+    private static final String WINRT_TARGET_FRAMEWORK = "NetCore45";
     private static final String METADATA_TAG = "metadata";
     private static final String FILE_ATTRIBUTE = "file";
     private static final String PRODUCT_NAME = "FeatureEditor";
@@ -75,14 +78,14 @@ public class NarNugetMojo extends AbstractCompileMojo
     private static final String NUGET_SPEC_COMMAND = "NuGet.exe spec";
     private static final String NUGET_LOCATION = "NuGet";
     private static final String NUSPEC_EXTENSION = ".nuspec";
-    private static final String CONTENT_LOCATION = "content";
     private static final String LIB_LOCATION = "lib";
-    private static final String WINRT_FRAMEWORK = "WinRT45";
     private static final String DLL_EXTENSION = ".dll";
     private static final String WINMD_EXTENSION = ".winmd";
+    private static final String PDB_EXTENSION = ".pdb";
     private static final String REFERENCE_TAG = "reference";
-    private static final String UNINSTALL_SCRIPT_NAME = "uninstall.ps1";
-    protected static final String PDB_EXTENSION = ".pdb";
+    private static final String UNINSTALL_SCRIPT_NAME = "Uninstall.ps1";
+    private static final String UTILITIES_NAME = "InstallUtilities";
+    private static final String UTILITIES_EXTENSION = ".psm1";
 
     /**
      * @parameter expression=""
@@ -90,18 +93,9 @@ public class NarNugetMojo extends AbstractCompileMojo
      */
     private String centralNugetPackageSource;
 
-    /**
-     * Artifact Id of dependency used to to generate nuGet package.
-     *
-     * An empty string default value equates to a null object.
-     * @parameter expression="" default-value=""
-     */
-    private String narArtifactId;
-
     private File nugetDir;
     private File nuspecFile;
     private String packageName;
-    private File libDirectory;
     private Document nuspecDocument;
     private String version;
     private File nupkgFile;
@@ -117,7 +111,7 @@ public class NarNugetMojo extends AbstractCompileMojo
             return;
         }
 
-        String artifactId = narArtifactId == null ? getMavenProject().getArtifactId() : narArtifactId;
+        String artifactId = getMavenProject().getArtifactId();
         packageName = convertToPackageName(artifactId);
 
         try
@@ -126,13 +120,7 @@ public class NarNugetMojo extends AbstractCompileMojo
             cleanNugetDirectory();
             createTemplateNuspecFile();
             populateNuspecFile();
-            createContentDirectory();
-            moveContent();
-            if(isWinRT())
-            {
-                createLibDirectory();
-                moveLibs();
-            }
+            moveLibs();
             addScripts();
             packNugetPackage();
             copyToCentralPackageSource();
@@ -143,111 +131,85 @@ public class NarNugetMojo extends AbstractCompileMojo
         }
     }
 
-    private void moveFiles(File destination, FilenameFilter filefilter) throws MojoExecutionException, MojoFailureException, IOException
+    private void moveFiles(String destination, List artifacts, FilenameFilter filefilter) throws MojoExecutionException, MojoFailureException, IOException
     {
-        MavenProject mavenProject = getMavenProject();
-        String artifactId = null;
-        String version = null;
-        if (narArtifactId != null)
-        {   //want to be able to use dlls from a dependency artifact if required
-            List dependencies = mavenProject.getDependencies();
-            for(int i = 0; i < dependencies.size(); i++)
-            {
-                Dependency d = (Dependency) dependencies.get(i);
-                if (d.getArtifactId().equals(narArtifactId))
-                {
-                    artifactId = d.getArtifactId();
-                    version = d.getVersion();
-                }
-            }
-            if(version==null)
-            {
-                throw new MojoFailureException("Could not find dependency for narArtifactId '" + narArtifactId + "'");
-            }
-        }
-        else
+        File targetDirectory = new File(nugetDir, LIB_LOCATION + File.separator + destination);
+
+        for (Iterator i = artifacts.iterator(); i.hasNext();)
         {
-            artifactId = mavenProject.getArtifactId();
-            version = mavenProject.getVersion();
+            NarArtifact artifact = (NarArtifact) i.next();
+            File libDir = getLayout().getLibDirectory(getTargetDirectory(),
+                    artifact.getArtifactId(), artifact.getVersion(),
+                    getAOL().toString(), SHARED); //We only care about dlls.
+
+            getLog().debug("Source directory: " + libDir);
+            getLog().debug("Destination directory: " + targetDirectory);
+
+            File[] filesToCopy = libDir.listFiles(filefilter);
+            if(filesToCopy != null)
+                for(int j = 0; j < filesToCopy.length; j++)
+                    copyToDirectory(filesToCopy[j], targetDirectory);
         }
-        File libDir = getLayout().getLibDirectory(getTargetDirectory(),
-                artifactId, version,
-                getAOL().toString(), SHARED); //We only care about dlls.
-        getLog().debug("Source directory: " + libDir);
-        getLog().debug("Destination directory: " + destination);
-
-        File[] filesToCopy = libDir.listFiles(filefilter);
-        if(filesToCopy != null)
-            for(int i = 0; i < filesToCopy.length; i++)
-                copyToDirectory(filesToCopy[i], destination);
-    }
-
-    private void moveContent() throws MojoExecutionException, MojoFailureException, IOException
-    {
-        getLog().info("Copying to content folder");
-
-        FilenameFilter filter = new FilenameFilter()
-        {
-            public boolean accept(File dir, String name)
-            {
-                try
-                {
-                    if(isWinRT())
-                        return name.endsWith(PDB_EXTENSION);
-                }
-                catch (Exception e)
-                {
-                    e.printStackTrace(); //we can't escalate the exception out of this inner class
-                    return false;
-                }
-                return name.endsWith(DLL_EXTENSION) || name.endsWith(PDB_EXTENSION);
-            }
-        };
-
-        moveFiles(contentDirectory, filter);
     }
 
     private void moveLibs() throws MojoExecutionException, MojoFailureException, IOException
     {
-        getLog().info("Copying to lib folder");
+        getLog().info("Copying binaries to lib folder");
+
+        // Get dependencies
+        List dependencies = getNarManager().getNarDependencies(Artifact.SCOPE_COMPILE);
+
+        // Separate out the win RT dependencies
+
+        // This is a list of the maven artifacts that want to go int the net framework lib folder
+        // Hardcoding these is hacky as hell and I don't like it, but we are binning the nar plugin soon
+        List netDependencyIds = new ArrayList();
+        netDependencyIds.add("amalgam-com");
+        netDependencyIds.add("amalgam-devices-communication");
+        netDependencyIds.add("amalgam-devices-teststub");
+        netDependencyIds.add("amalgam-devices-sharedcomponents");
+        netDependencyIds.add("amalgam-devices-leicatotalstation");
+        netDependencyIds.add("amalgam-devices-leicagps");
+        netDependencyIds.add("amalgam-devices-GeoComS2K");
+        netDependencyIds.add("amalgam-devices-nmealib");
+
+        List winRTDependencies = new ArrayList();
+        List netDependencies = new ArrayList();
+        for (Iterator i = dependencies.iterator(); i.hasNext();)
+        {
+            NarArtifact dependency = (NarArtifact) i.next();
+            if (netDependencyIds.contains(dependency.getArtifactId()))
+            {
+                netDependencies.add(dependency);
+            }
+            else
+            {
+                winRTDependencies.add(dependency);
+            }
+        }
 
         FilenameFilter filter = new FilenameFilter()
         {
             public boolean accept(File dir, String name)
             {
-                return name.endsWith(DLL_EXTENSION) || name.endsWith(WINMD_EXTENSION);
+                return name.endsWith(DLL_EXTENSION)
+                || name.endsWith(WINMD_EXTENSION)
+                || name.endsWith(PDB_EXTENSION);
             }
         };
 
-        moveFiles(libDirectory, filter);
+        moveFiles(DOT_NET_TARGET_FRAMEWORK, netDependencies, filter);
+        moveFiles(WINRT_TARGET_FRAMEWORK, winRTDependencies, filter);
     }
 
-    private void createContentDirectory() throws MojoExecutionException
+    private String convertToPackageName(String artifactId) throws MojoExecutionException, MojoFailureException
     {
-        contentDirectory = new File(nugetDir, CONTENT_LOCATION);
-        getLog().info("Creating " + contentDirectory);
-        createDirectory(contentDirectory);
-    }
-
-    private void createLibDirectory() throws MojoExecutionException
-    {
-        libDirectory = new File(nugetDir, LIB_LOCATION + File.separator + WINRT_FRAMEWORK);
-        getLog().info("Creating " + libDirectory);
-        createDirectory(libDirectory);
-    }
-
-    private String convertToPackageName(String artifactId)
-    {
-        String[] parts = artifactId.split("-");
-        StringBuilder builder = new StringBuilder();
-        for (int i = 0; i < parts.length; i++)
-        {
-            if(builder.length() > 0)
-                builder.append(".");
-            builder.append(Character.toUpperCase(parts[i].charAt(0)));
-            builder.append(parts[i].substring(1).trim());
-        }
-        return builder.toString();
+		String libs = getNarInfo().getLibs(getAOL());
+		if (!libs.contains(","))
+		{
+			return libs;
+		}
+		return libs.split(",", 0)[0];
     }
 
     private void copyToCentralPackageSource() throws MojoExecutionException, IOException
@@ -272,9 +234,16 @@ public class NarNugetMojo extends AbstractCompileMojo
 
     private void addScripts() throws MojoExecutionException, IOException, MojoFailureException
     {
-        getLog().info("Adding install script");
+        getLog().info("Adding scripts");
         File toolsDir = new File(nugetDir, TOOLS_LOCATION);
         createDirectory(toolsDir);
+
+        File utilitiesDir = new File(toolsDir, UTILITIES_NAME);
+        createDirectory(utilitiesDir);
+        File utilitiesScript = new File(utilitiesDir, UTILITIES_NAME + UTILITIES_EXTENSION);
+        addContentToScript(utilitiesScript, NarUtil.class.getResourceAsStream(UTILITIES_NAME + UTILITIES_EXTENSION));
+        if(!utilitiesScript.exists())
+            throw new MojoExecutionException("Problem copying utilities script");
 
         File installScript = new File(toolsDir, INSTALL_SCRIPT_NAME);
         addContentToScript(installScript, NarUtil.class.getResourceAsStream(INSTALL_SCRIPT_NAME));
@@ -345,82 +314,71 @@ public class NarNugetMojo extends AbstractCompileMojo
         removeElement(LICENSE_URL_TAG);
         removeElement(PROJECT_URL_TAG);
         removeElement(ICON_URL_TAG);
+        removeElement(DEPENDENCIES_TAG);
         setElementContents(DESCRIPTION_TAG, getMavenProject().getDescription());
         removeElement(RELEASE_NOTES_TAG);
         setElementContents(TAGS_TAG, PRODUCT_NAME);
-        setDependencies();
-        if(isWinRT())
-            addReference();
+        addReference();
 
         saveNuspec();
     }
 
-    private void setDependencies() throws MojoExecutionException, MojoFailureException
+    private Element createReferenceGroup(List dependencies, String targetFramework, String extension) throws MojoExecutionException, MojoFailureException
     {
-        List dependencies;
+        Element group = nuspecDocument.createElement(GROUP_TAG);
+        group.setAttribute(TARGET_FRAMEWORK_ATTRIBUTE, targetFramework);
 
-        if(narArtifactId == null)
-        {
-            dependencies = getNarManager().getDirectNarDependencies(Artifact.SCOPE_COMPILE);
-        }
-        else
-        { //include transitive dependencies
-            dependencies = getNarManager().getNarDependencies(Artifact.SCOPE_COMPILE);
-        }
-        
-
-        int numDependencies = dependencies.size();
-        getLog().debug("Adding " + numDependencies + " dependencies");
-        if(numDependencies == 0)
-        {
-            removeElement(DEPENDENCIES_TAG);
-            return;
-        }
-        removeElement(DEPENDENCY_TAG);
-        for(Iterator i = dependencies.iterator(); i.hasNext();)
+        for (Iterator i = dependencies.iterator(); i.hasNext();)
         {
             NarArtifact dependency = (NarArtifact) i.next();
-            String dependencyName = dependency.getArtifactId();
-
-            if(!dependency.getNarInfo().getBinding(getAOL(), "").equals(SHARED))
-            {
-                getLog().debug("Not adding dependency " + dependencyName + " as it has no dlls");
-                continue;
-            }
-
-            if(dependency.getArtifactId().equals(narArtifactId))
-            {
-                getLog().debug("Not adding dependency " + dependencyName + " because this is the " +
-                        "artifact we are using to create the nuGet package");
-                continue;
-            }
-
-            boolean generatesNugetPackages = dependency.getNarInfo().isCreateNuget(getAOL());
-
-            if(!generatesNugetPackages)
-            {
-                getLog().debug("Not adding dependency " + dependencyName + " as it does not generate a Nuget package");
-                continue;
-            }
-
-            String nugetDependencyName = convertToPackageName(dependencyName);
-            getLog().debug("Adding dependency " + dependencyName + " as " + nugetDependencyName);
-            Element dependencyElement = nuspecDocument.createElement(DEPENDENCY_TAG);
-            dependencyElement.setAttribute(ID_ATTRIBUTE, nugetDependencyName);
-            dependencyElement.setAttribute(VERSION_ATTRIBUTE, getNugetMajorMinorVersion(dependency.getVersion()));
-            getNamedNode(DEPENDENCIES_TAG).appendChild(dependencyElement);
+            String referenceName = dependency.getNarInfo().getLibs(getAOL()) + extension;
+            Element reference = nuspecDocument.createElement(REFERENCE_TAG);
+            reference.setAttribute(FILE_ATTRIBUTE, referenceName);
+            group.appendChild(reference);
         }
+
+        return group;
     }
 
     private void addReference() throws MojoExecutionException, MojoFailureException
     {
-        String referenceName = getOutput(getAOL()) + WINMD_EXTENSION;
-        getLog().debug("Adding " + referenceName + " as reference");
-        Element referenceElement = nuspecDocument.createElement(REFERENCE_TAG);
-        referenceElement.setAttribute(FILE_ATTRIBUTE, referenceName);
-        Element parent = nuspecDocument.createElement(REFERENCES_TAG);
-        parent.appendChild(referenceElement);
-        getNamedNode(METADATA_TAG).appendChild(parent);
+        // Get dependencies
+        List dependencies = getNarManager().getDirectNarDependencies(Artifact.SCOPE_COMPILE);
+
+        // Separate out the win RT dependencies
+        List winRTDependencies = new ArrayList();
+        for (Iterator i = dependencies.iterator(); i.hasNext();)
+        {
+            NarArtifact dependency = (NarArtifact) i.next();
+            if (isWinRT(dependency.getNarInfo()))
+            {
+                winRTDependencies.add(dependency);
+                i.remove();
+            }
+        }
+        // Create the reference groups
+        List groupElements = new ArrayList();
+        if (dependencies.size() != 0)
+        {
+            groupElements.add(createReferenceGroup(dependencies, DOT_NET_TARGET_FRAMEWORK, DLL_EXTENSION));
+        }
+        if (winRTDependencies.size() != 0)
+        {
+            groupElements.add(createReferenceGroup(winRTDependencies, WINRT_TARGET_FRAMEWORK, WINMD_EXTENSION));
+        }
+
+        // Add the reference groups to the nuspec file
+        if (groupElements.size() != 0)
+        {
+            Element references = nuspecDocument.createElement(REFERENCES_TAG);
+
+            for (Iterator i = groupElements.iterator(); i.hasNext();)
+            {
+                Element group = (Element) i.next();
+                references.appendChild(group);
+            }
+            getNamedNode(METADATA_TAG).appendChild(references);
+        }
     }
 
     private void removeElement(String tagname) throws MojoExecutionException
@@ -459,12 +417,12 @@ public class NarNugetMojo extends AbstractCompileMojo
     {
         getLog().info("Calculating NuGet version number");
         String version = getMavenProject().getVersion();
-        String majorMinor = getNugetMajorMinorVersion(version);
-        String revision = getBuildNumber(majorMinor);
-        return majorMinor + "." + revision;
+        String majorMinorBuild = getNugetMajorMinorBuildVersion(version);
+        String revision = getRevisionNumber(majorMinorBuild);
+        return majorMinorBuild + "." + revision;
     }
 
-    private String getBuildNumber(String majorMinor) throws IOException, InterruptedException
+    private String getRevisionNumber(String majorMinorBuild) throws IOException, InterruptedException
     {
         String revision = "0"; //Default value for first snapshot package
         CommandResult result = runCommand(NUGET_LIST_COMMAND + " " + centralNugetPackageSource);
@@ -476,16 +434,16 @@ public class NarNugetMojo extends AbstractCompileMojo
             if(!line.startsWith(packageName))
                 continue;
             String latestVersion = line.substring(packageName.length() + 1);
-            if(!latestVersion.startsWith(majorMinor))
-                break;
-            String buildRevision = latestVersion.substring(majorMinor.length() + 1);
+            if(!latestVersion.startsWith(majorMinorBuild))
+                continue;
+            String buildRevision = latestVersion.substring(majorMinorBuild.length() + 1);
             int latestRevision = Integer.parseInt(buildRevision);
             revision = Integer.toString(latestRevision + 1);
         }
         return revision;
     }
 
-    private String getNugetMajorMinorVersion(String version)
+    private String getNugetMajorMinorBuildVersion(String version)
     {
         int snapshotIndex = getSnapshotIndex(version);
         if(snapshotIndex != -1)
@@ -505,9 +463,9 @@ public class NarNugetMojo extends AbstractCompileMojo
         FileUtils.copyFileToDirectory(file, destinationDir);
     }
 
-    private boolean isWinRT() throws MojoExecutionException, MojoFailureException
+    private boolean isWinRT(NarInfo info) throws MojoExecutionException, MojoFailureException
     {
-        return getNarInfo().isTargetWinRT(getAOL());
+        return info.isTargetWinRT(getAOL());
     }
 
     private void createTemplateNuspecFile() throws IOException, InterruptedException, MojoExecutionException, SAXException, ParserConfigurationException
