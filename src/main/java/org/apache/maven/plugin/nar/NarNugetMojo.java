@@ -425,6 +425,7 @@ public class NarNugetMojo extends AbstractCompileMojo
     private String getRevisionNumber(String majorMinorBuild) throws IOException, InterruptedException
     {
         String revision = "0"; //Default value for first snapshot package
+		int latestRevision = 0; // Holder for the highest revision number we have found so far
         CommandResult result = runCommand(NUGET_LIST_COMMAND + " " + centralNugetPackageSource);
 
         for(Iterator it = result.output.iterator(); it.hasNext();)
@@ -437,8 +438,12 @@ public class NarNugetMojo extends AbstractCompileMojo
             if(!latestVersion.startsWith(majorMinorBuild))
                 continue;
             String buildRevision = latestVersion.substring(majorMinorBuild.length() + 1);
-            int latestRevision = Integer.parseInt(buildRevision);
-            revision = Integer.toString(latestRevision + 1);
+            int foundRevision = Integer.parseInt(buildRevision);
+			if (foundRevision >= latestRevision)
+			{
+				latestRevision = foundRevision;
+				revision = Integer.toString(foundRevision + 1);
+			}
         }
         return revision;
     }
