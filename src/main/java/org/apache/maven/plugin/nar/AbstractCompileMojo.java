@@ -477,14 +477,10 @@ public abstract class AbstractCompileMojo
                 {
                     String pchName = pchFiles[index].getName().replace(".pch", ".h");
                     String absolutePchName = pchDir + File.separator +  pchName;
-                    addCompileOption(cppCompiler, "/Yu" + absolutePchName);
-                    addCompileOption(cppCompiler, "/FI" + absolutePchName); //force inclusion of pch file
                     if(debug)
                     {
                         pchName = pchName.replace(".h", ".pdb");
                         File pdbFile = new File(pchDir, pchName);
-                        if(pdbFile.exists())
-                            addCompileOption(cppCompiler, "/Fd" + pdbFile.getPath());
                     }
                 }
             }
