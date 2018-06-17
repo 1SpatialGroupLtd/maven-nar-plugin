@@ -8,20 +8,17 @@ public class VisualStudioProjectTemplateModifier extends
 {
     private static final String RUNTIME_STATIC = "static";
     private static final String RUNTIME_DYNAMIC = "dynamic";
-    private static final String PCHHEADERINCLUDE = "PCHHEADERFILE";
-    private String precompiledHeaderFilePath;
     private String projectGUID;
     private String projectName;
     private ProjectInfo info;
 
     public VisualStudioProjectTemplateModifier(ProjectInfo info,
-            File destinationFile, String projectGUID, String projectName, String narPrecompiledHeaderFilePath) throws MojoExecutionException
+            File destinationFile, String projectGUID, String projectName) throws MojoExecutionException
     {
         super(info.getPprojectTemplate(), destinationFile);
         this.projectGUID = projectGUID;
         this.projectName = projectName;
         this.info = info;
-        this.precompiledHeaderFilePath = narPrecompiledHeaderFilePath;
     }
 
     protected String replacePlaceholders(String contents) throws MojoExecutionException
@@ -38,27 +35,11 @@ public class VisualStudioProjectTemplateModifier extends
         modifiedContents = replace(modifiedContents, LIBRARIES_DEBUG, getLibrariesAsString(true));
         modifiedContents = replace(modifiedContents, HEADER_FILE_ELEMENTS, getHeaderFileElementsAsString());
         modifiedContents = replace(modifiedContents, SOURCE_FILE_ELEMENTS, getSourceFileElementsAsString());
-        modifiedContents = replace(modifiedContents, USE_PRE_COMPILED_HEADERS, getUsePreCompiledHeaders());
-        modifiedContents = replace(modifiedContents, CLEAN_PRE_COMPILED_HEADERS, getCleanPreCompiledHeadersCommand());
-        modifiedContents = replace(modifiedContents, COPY_PRE_COMPILED_HEADER_FILE, getPrecompiledHeaderFileCopyCommand());
-        modifiedContents = replace(modifiedContents, PRE_COMPILED_HEADER_H, getPreCompiledHeaderH(false));
-        modifiedContents = replace(modifiedContents, PRE_COMPILED_HEADER_PDB, getPreCompiledHeaderPdb(false));
-        modifiedContents = replace(modifiedContents, FORCED_INCLUDES, getForcedIncludes(false));
-        modifiedContents = replace(modifiedContents, PRE_COMPILED_HEADER_H_DEBUG, getPreCompiledHeaderH(true));
-        modifiedContents = replace(modifiedContents, PRE_COMPILED_HEADER_PDB_DEBUG, getProjectPrecompiledHeaderPdb(true));
-        modifiedContents = replace(modifiedContents, FORCED_INCLUDES_DEBUG, getForcedIncludes(true));
         modifiedContents = replace(modifiedContents, RUNTIME_LIBRARY, getRuntimeLibrary(false));
         modifiedContents = replace(modifiedContents, RUNTIME_LIBRARY_DEBUG, getRuntimeLibrary(true));
 
 
         return modifiedContents;
-    }
-
-    private String getForcedIncludes(boolean debug) throws MojoExecutionException
-    {
-        if(info.usePch())
-            return "/FI" + getPreCompiledHeaderH(debug);
-        return "";
     }
 
     private String getRuntimeLibrary(boolean debug)
@@ -67,77 +48,6 @@ public class VisualStudioProjectTemplateModifier extends
         if(info.getRuntime().equals(RUNTIME_STATIC))
             return "MultiThreaded" + runtimeLib;
         return "MultiThreaded" + runtimeLib + "Dll";
-    }
-
-    private String getPrecompiledHeaderFileCopyCommand() throws MojoExecutionException
-    {
-        if(info.usePch())
-        {
-            if (precompiledHeaderFilePath != null)
-            {
-                String precompiledHeaderFile = precompiledHeaderFilePath + File.separator + info.getPchFileName() + ".h";
-                File file = new File(precompiledHeaderFile);
-                if (!file.exists())
-                    throw new MojoExecutionException("Please specify a valid path to the pch header file using maven option -DnarPrecompiledHeader.path\r\nRelative paths should start from the project base directory.");
-                else
-                {
-                    // Relative path problem, the VS project location is two directories lower than the pom, from where it checks for the file.
-                    // Since this command will be run from the VS project, need the path to aim two directories higher.
-                    if (precompiledHeaderFile.startsWith(".."))
-                    {
-                        precompiledHeaderFile = "..\\..\\" + precompiledHeaderFile;
-                    }
-                    StringBuilder builder = new StringBuilder();
-                    builder.append("\r\ncopy ");
-                    builder.append(precompiledHeaderFile);
-                    builder.append(" ");
-                    builder.append(info.getRelativePchDirectory(true) + File.separator + info.getPchFileName() + ".h");
-                    return builder.toString();
-                }
-            }
-        }
-        return "";
-    }
-
-    private String getCleanPreCompiledHeadersCommand() throws MojoExecutionException
-    {
-        if(info.usePch())
-        {
-            StringBuilder builder = new StringBuilder();
-            builder.append("copy ");
-            builder.append(getPreCompiledHeaderPdb(true));
-            builder.append(" ");
-            builder.append(getProjectPrecompiledHeaderPdb(true));
-            return builder.toString();
-        }
-        return "";
-    }
-
-    private String getProjectPrecompiledHeaderPdb(boolean debug) throws MojoExecutionException
-    {
-        String folderName = debug ? "Debug" : "Release";
-        if(info.usePch())
-            return folderName + File.separator + info.getPchFileName() + ".pdb";
-        return "";
-    }
-
-    private String getPreCompiledHeaderPdb(boolean debug) throws MojoExecutionException
-    {
-        if(info.usePch())
-            return info.getRelativePchDirectory(debug) + File.separator + info.getPchFileName() + ".pdb";
-        return "";
-    }
-
-    private String getPreCompiledHeaderH(boolean debug) throws MojoExecutionException
-    {
-        if(info.usePch())
-            return info.getRelativePchDirectory(debug) + File.separator + info.getPchFileName() + ".h";
-        return "";
-    }
-
-    private String getUsePreCompiledHeaders() throws MojoExecutionException
-    {
-        return info.usePch() ? "Use" : "";
     }
 
     private String getHeaderFileElementsAsString() throws MojoExecutionException
@@ -154,21 +64,12 @@ public class VisualStudioProjectTemplateModifier extends
 
     private String getLibrariesAsString(boolean debug) throws MojoExecutionException
     {
-        String libraries = convertToString(info.getLibraryFiles(), ";");
-        if(info.usePch())
-            libraries += info.getRelativePchDirectory(debug) + File.separator + info.getPchFileName() + ".obj";
-        return libraries;
-
+        return convertToString(info.getLibraryFiles(), ";");
     }
 
     private String getDefinesAsString()
     {
-        String pchHeader = "";
-        if (precompiledHeaderFilePath != null)
-        {
-            pchHeader = "/D" + PCHHEADERINCLUDE;
-        }
-        return convertToStringUsingPrefix(info.getDefines(), "/D ", " ") + pchHeader + " ";
+      return convertToStringUsingPrefix(info.getDefines(), "/D ", " ") + " ";
     }
 
     private String getLibraryPathsAsString() throws MojoExecutionException

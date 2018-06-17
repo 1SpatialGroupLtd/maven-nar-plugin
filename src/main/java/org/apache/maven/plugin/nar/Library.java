@@ -43,8 +43,6 @@ public class Library
 
     public static final String NONE = "none"; // no library produced
 
-    public static final String PCH = "pch";
-
     /**
      * Type of the library to generate. Possible choices are: "plugin", "shared", "static", "jni" or "executable".
      * Defaults to "shared".

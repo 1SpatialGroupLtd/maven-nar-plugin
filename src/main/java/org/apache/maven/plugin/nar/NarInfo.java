@@ -47,8 +47,6 @@ public class NarInfo
 
     public static final String NAR_PROPERTIES = "nar.properties";
 
-    private static final String PCH_NAMES = "pch.names";
-
     private String groupId, artifactId, version;
 
     private Properties info;
@@ -273,26 +271,5 @@ public class NarInfo
     public final boolean isCreateNuget(AOL aol)
     {
         return getProperty(aol, CREATE_NUGET, false);
-    }
-
-    public final void setPchNames(AOL aol, Set pchNames)
-    {
-        if(pchNames.isEmpty())
-            return;
-        StringBuilder builder = new StringBuilder();
-        for(Iterator it = pchNames.iterator(); it.hasNext();)
-        {
-            if(builder.length() != 0)
-                builder.append(", ");
-            String pchName = (String)it.next();
-            int extensionIndex = pchName.lastIndexOf(".");
-            builder.append(pchName.substring(0, extensionIndex));
-        }
-        setProperty(aol, PCH_NAMES, builder.toString());
-    }
-
-    public final String getPchNames(AOL aol)
-    {
-        return getProperty(aol, PCH_NAMES, "");
     }
 }

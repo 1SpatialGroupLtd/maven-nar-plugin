@@ -346,18 +346,7 @@ public abstract class AbstractCompileMojo
 
             narInfo.setLibrary(getAOL(), output);
 
-            Set pchNames = new HashSet();
-            //Add all the source files from pch libraries to a list
-            for(Iterator libraryIterator = libraries.iterator(); libraryIterator.hasNext();)
-                if(((Library)libraryIterator.next()).getType().equals(Library.PCH))
-                {
-                    //Only supported for C++
-                    List sources = getSourcesFor(getCpp());
-                    for(Iterator sourcesIterator = sources.iterator(); sourcesIterator.hasNext();)
-                        pchNames.add(((File)sourcesIterator.next()).getName());
-                }
-            //add this info to the narInfo
-            narInfo.setPchNames(getAOL(), pchNames);
+            // Add this info to the narInfo
             narInfo.setTargetWinRT(getAOL(), isTargetWinRT());
             narInfo.setCreateNuget(getAOL(), createNugetPackage);
         }
@@ -450,57 +439,10 @@ public abstract class AbstractCompileMojo
         return getSourcesFromSourceDirectories(compiler, srcDirs);
     }
 
-    protected void addPrecompiledHeaderOptions(Compiler cppCompiler, String scope)
-    throws MojoExecutionException, MojoFailureException
-    {
-        for ( Iterator i = getNarManager().getNarDependencies( scope ).iterator(); i.hasNext(); )
-        {
-            NarArtifact narDependency = (NarArtifact) i.next();
-            String binding = narDependency.getNarInfo().getBinding(getAOL(), Library.STATIC);
-            getLog().debug( "Looking for " + narDependency + " found binding " + binding);
-            if (binding.equals(Library.PCH ) )
-            {
-                getLog().debug("Found pch dependency " + narDependency.getArtifactId());
-                File unpackDirectory = getUnpackDirectory();
-                File pchDir =
-                    getLayout().getLibDirectory(unpackDirectory, narDependency.getArtifactId(),
-                            narDependency.getVersion(), getAOL().toString(), binding);
-
-                File[] pchFiles = pchDir.listFiles(new FilenameFilter()
-                {
-                    public boolean accept(File dir, String name)
-                    {
-                        return name.endsWith(".pch");
-                    }
-                });
-                for(int index = 0; index < pchFiles.length; index++)
-                {
-                    String pchName = pchFiles[index].getName().replace(".pch", ".h");
-                    String absolutePchName = pchDir + File.separator +  pchName;
-                    if(debug)
-                    {
-                        pchName = pchName.replace(".h", ".pdb");
-                        File pdbFile = new File(pchDir, pchName);
-                    }
-                }
-            }
-        }
-    }
-
     protected void addCompileOption(Compiler compiler, String option)
     {
         getLog().debug("Added compile option " + option);
         compiler.addOption(option);
-    }
-
-    protected void addPchObjFiles(LinkerDef linkerDefinition, String binding,
-            File libraryDirectory)
-    {
-        if(binding.equals(Library.PCH))
-        {
-            getLog().debug("adding precomiled header obj file");
-            addObjFiles(linkerDefinition, libraryDirectory);
-        }
     }
 
     protected void addObjFiles(LinkerDef linkerDefinition, File libraryDirectory)
