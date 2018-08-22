@@ -93,24 +93,12 @@ public class NarCompileMojo
 
         try
         {
-            //if we only contain pch libraries we don't want to copy the headers
-            boolean copyHeaders = false;
-            for ( Iterator i = getLibraries().iterator(); i.hasNext(); )
-                if(!((Library) i.next()).getType().equals(Library.PCH))
-                {
-                    copyHeaders = true;
-                    break;
-                }
-
-            // FIXME, should the include paths be defined at a higher level ?
-            if(copyHeaders)
-            {
-                getCpp().copyIncludeFiles(
-                                       getMavenProject(),
-                                       getLayout().getIncludeDirectory( getDestinationDirectory(),
-                                                                        getMavenProject().getArtifactId(),
-                                                                        getMavenProject().getVersion() ) );
-            }
+          getCpp().copyIncludeFiles( getMavenProject()
+                                   , getLayout().getIncludeDirectory( getDestinationDirectory()
+                                                                    , getMavenProject().getArtifactId()
+                                                                    , getMavenProject().getVersion()
+                                                                    )
+                                   );
         }
         catch ( IOException e )
         {
@@ -137,12 +125,9 @@ public class NarCompileMojo
         // outtype
         String type = library.getType();
 
-        if(!type.equals(Library.PCH)) //we only need this if we are linking
-        {
-            OutputTypeEnum outTypeEnum = new OutputTypeEnum();
-            outTypeEnum.setValue(type);
-            task.setOuttype(outTypeEnum);
-        }
+        OutputTypeEnum outTypeEnum = new OutputTypeEnum();
+        outTypeEnum.setValue(type);
+        task.setOuttype(outTypeEnum);
 
         setLanguageLinkers(task, library);
 
@@ -170,10 +155,6 @@ public class NarCompileMojo
             // executable has no version number
             outFile = new File(outDir, getMavenProject().getArtifactId());
         }
-        else if(type.equals(Library.PCH))
-        {
-            outFile = null; //This stops us linking
-        }
         else
         {
             outFile = new File(outDir, getOutput(getAOL()));
@@ -186,17 +167,10 @@ public class NarCompileMojo
         task.setOutfile(outFile);
 
         // object directory
-        if(type.equals(Library.PCH))
-        {
-            task.setObjdir(outDir); //we want the pch as the output
-        }
-        else
-        {
-            File objDir = new File(getDestinationDirectory(), getObjectDirectoryName());
-            objDir = new File(objDir, getAOL().toString());
-            objDir.mkdirs();
-            task.setObjdir(objDir);
-        }
+        File objDir = new File(getDestinationDirectory(), getObjectDirectoryName());
+        objDir = new File(objDir, getAOL().toString());
+        objDir.mkdirs();
+        task.setObjdir(objDir);
 
         // failOnError, libtool
         task.setFailonerror(failOnError(getAOL()));
@@ -219,7 +193,7 @@ public class NarCompileMojo
             {
                 String binding = narDependency.getNarInfo().getBinding(getAOL(), Library.STATIC);
                 getLog().debug( "Looking for " + narDependency + " found binding " + binding);
-                if ( !binding.equals(Library.JNI ) && !binding.equals(Library.PCH) )
+                if (!binding.equals(Library.JNI ))
                 {
                     //File unpackDirectory = getUnpackDirectory();
                     File include =
@@ -345,9 +319,6 @@ public class NarCompileMojo
                             sysLibSet.setLibs( new CUtil.StringArrayBuilder( sysLibs ) );
                             task.addSyslibset(sysLibSet);
                         }
-
-                        //Add obj files for pre compiled headers to the linker
-                        addPchObjFiles(linkerDefinition, binding, dir);
                     }
                 }
             }
@@ -462,9 +433,6 @@ public class NarCompileMojo
                 }
             }
         }
-
-        //Add precompiled header options
-        addPrecompiledHeaderOptions(cppCompiler, "compile");
 
         // Darren Sargent Feb 11 2010: Use Compiler.MAIN for "type"...appears the wrong "type" variable was being used
         // since getCompiler() expects "main" or "test", whereas the "type" variable here is "executable", "shared" etc.

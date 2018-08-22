@@ -116,9 +116,6 @@ public class NarTestCompileMojo
         runtimeType.setValue( getRuntime( getAOL() ) );
         task.setRuntime( runtimeType );
 
-        // add precompiled header options
-        addPrecompiledHeaderOptions(getCpp(), "test");
-
         // add C++ compiler
         CompilerDef cpp = getCpp().getCompiler( type, test.getName() );
         if ( cpp != null )
@@ -325,9 +322,6 @@ public class NarTestCompileMojo
                     sysLibSet.setLibs( new CUtil.StringArrayBuilder( sysLibs ) );
                     task.addSyslibset( sysLibSet );
                 }
-
-                //Add obj files for pre compiled headers to the linker
-                addPchObjFiles(linkerDefinition, binding, dir);
             }
         }
 

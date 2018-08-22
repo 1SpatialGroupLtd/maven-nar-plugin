@@ -54,16 +54,12 @@
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
-      <PrecompiledHeader>[#usePreCompiledHeader#]</PrecompiledHeader>
       <WarningLevel />
       <Optimization>Disabled</Optimization>
       <PreprocessorDefinitions>_DEBUG;_WINDOWS;_USRDLL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <TreatWarningAsError>true</TreatWarningAsError>
       <MinimalRebuild />
-      <PrecompiledHeaderFile>[#preCompiledHeader.hDebug#]</PrecompiledHeaderFile>
-      <PrecompiledHeaderOutputFile />
-      <ProgramDataBaseFileName>[#preCompiledHeader.pdbDebug#]</ProgramDataBaseFileName>
       <CallingConvention />
       <RuntimeTypeInfo>true</RuntimeTypeInfo>
       <AdditionalOptions>[#defines#] [#forcedIncludesDebug#]%(AdditionalOptions)</AdditionalOptions>
@@ -74,16 +70,12 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalDependencies>[#librariesDebug#];%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
-    <PreBuildEvent>
-      <Command>[#cleanPreCompiledHeaders#]</Command>
-    </PreBuildEvent>
     <PostBuildEvent>
       <Command>path=%path%;[#libraryPaths#] &amp;&amp; [#projectName#].exe</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <ClCompile>
-      <PrecompiledHeader>[#usePreCompiledHeader#]</PrecompiledHeader>
       <WarningLevel />
       <Optimization>MaxSpeed</Optimization>
       <FunctionLevelLinking>true</FunctionLevelLinking>
@@ -92,8 +84,6 @@
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <TreatWarningAsError>true</TreatWarningAsError>
       <MinimalRebuild />
-      <PrecompiledHeaderFile>[#preCompiledHeader.h#]</PrecompiledHeaderFile>
-      <PrecompiledHeaderOutputFile />
       <CallingConvention />
       <RuntimeTypeInfo>true</RuntimeTypeInfo>
       <AdditionalOptions>[#defines#] [#forcedIncludes#]%(AdditionalOptions)</AdditionalOptions>
@@ -106,9 +96,6 @@
       <OptimizeReferences>true</OptimizeReferences>
       <AdditionalDependencies>[#libraries#];%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
-    <PreBuildEvent>
-      <Command>[#cleanPreCompiledHeaders#]</Command>
-    </PreBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
 [#headerFileElements#]
