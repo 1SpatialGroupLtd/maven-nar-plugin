@@ -323,34 +323,60 @@ public abstract class AbstractCompileMojo
      * @throws MojoFailureException
      */
     protected final NarInfo getNarInfo()
-        throws MojoExecutionException, MojoFailureException
+      throws MojoExecutionException, MojoFailureException
     {
-        if ( narInfo == null )
+      if (narInfo == null)
+      {
+        String groupId = getMavenProject().getGroupId();
+        String artifactId = getMavenProject().getArtifactId();
+
+        // Check for properties file.
+        File propertiesDir = getTargetPropertiesDir();
+        File propertiesFile = getPropertiesFile(propertiesDir);
+        if (!propertiesFile.exists())
         {
-            String groupId = getMavenProject().getGroupId();
-            String artifactId = getMavenProject().getArtifactId();
+          // If no properties file exists, use the properties listed
+          // in the plugin's properties file.
+          propertiesDir = new File( getMavenProject().getBasedir()
+                                  , "src/main/resources/META-INF/nar/" +
+                                    groupId +
+                                    "/" +
+                                    artifactId
+                                  );
 
-            File propertiesDir = getTargetPropertiesDir();
-            File propertiesFile = getPropertiesFile( propertiesDir );
-            if( !propertiesFile.exists() )
-            {
-                propertiesDir = new File( getMavenProject().getBasedir(), "src/main/resources/META-INF/nar/" + groupId + "/" + artifactId );
-                propertiesFile = getPropertiesFile( propertiesDir );
-            }
-
-            narInfo = new NarInfo(
-                groupId, artifactId,
-                getMavenProject().getVersion(),
-                getLog(),
-                propertiesFile );
-
-            narInfo.setLibrary(getAOL(), output);
-
-            // Add this info to the narInfo
-            narInfo.setTargetWinRT(getAOL(), isTargetWinRT());
-            narInfo.setCreateNuget(getAOL(), createNugetPackage);
+          propertiesFile = getPropertiesFile(propertiesDir);
         }
-        return narInfo;
+
+        narInfo = new NarInfo( groupId
+                             , artifactId
+                             , getMavenProject().getVersion()
+                             , getLog()
+                             , propertiesFile
+                             );
+
+        // Store current value of the libs.names property
+        // in the stored property file, prefixed by 'output'
+        // if its not already present.
+
+        final String delimeter = ", ";
+        final String[] oldLibs = narInfo.getLibs(getAOL()).split(delimeter);
+        String newLibs = output;
+        for (int i = 0; i < oldLibs.length; ++i)
+        {
+          final String oldLibName = oldLibs[i];
+          if (!oldLibName.equals(output))
+          {
+            newLibs = newLibs + delimeter + oldLibName;
+          }
+        }
+
+        // Add info to the new narInfo.
+        narInfo.setLibrary(getAOL(), newLibs);
+        narInfo.setTargetWinRT(getAOL(), isTargetWinRT());
+        narInfo.setCreateNuget(getAOL(), createNugetPackage);
+      }
+
+      return narInfo;
     }
 
     private boolean isTargetWinRT()
