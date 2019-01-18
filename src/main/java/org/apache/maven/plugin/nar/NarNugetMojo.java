@@ -323,7 +323,10 @@ public class NarNugetMojo extends AbstractCompileMojo
         saveNuspec();
     }
 
-    private Element createReferenceGroup(List dependencies, String targetFramework, String extension) throws MojoExecutionException, MojoFailureException
+    private Element createReferenceGroup( List dependencies
+                                        , String targetFramework
+                                        , String extension
+                                        ) throws MojoExecutionException, MojoFailureException
     {
         Element group = nuspecDocument.createElement(GROUP_TAG);
         group.setAttribute(TARGET_FRAMEWORK_ATTRIBUTE, targetFramework);
@@ -331,7 +334,19 @@ public class NarNugetMojo extends AbstractCompileMojo
         for (Iterator i = dependencies.iterator(); i.hasNext();)
         {
             NarArtifact dependency = (NarArtifact) i.next();
-            String referenceName = dependency.getNarInfo().getLibs(getAOL()) + extension;
+
+            // Get the list of lib names of the current dependency.
+            String libs = dependency.getNarInfo().getLibs(getAOL());
+            String libName = "";
+            if (libs != null)
+            {
+              String[] libsList = libs.split(", ");
+
+              // Adopt the first as the name of the reference.
+              libName = libsList[0].trim();
+            }
+
+            String referenceName = libName + extension;
             Element reference = nuspecDocument.createElement(REFERENCE_TAG);
             reference.setAttribute(FILE_ATTRIBUTE, referenceName);
             group.appendChild(reference);
