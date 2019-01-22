@@ -34,6 +34,9 @@ import org.codehaus.plexus.archiver.ArchiverException;
 import org.codehaus.plexus.archiver.UnArchiver;
 import org.codehaus.plexus.archiver.manager.ArchiverManager;
 import org.codehaus.plexus.archiver.manager.NoSuchArchiverException;
+import org.codehaus.plexus.components.io.fileselectors.FileSelector;
+import org.codehaus.plexus.components.io.fileselectors.IncludeExcludeFileSelector;
+import org.codehaus.plexus.archiver.AbstractUnArchiver;
 
 /**
  * @author Mark Donszelmann (Mark.Donszelmann@gmail.com)
@@ -87,11 +90,16 @@ public abstract class AbstractNarLayout
         projectHelper.attachArtifact( project, NarConstants.NAR_TYPE, classifier, narFile );
     }
 
-    protected void unpackNarAndProcess( ArchiverManager archiverManager, File file, File narLocation, String os,
-                                        String linkerName, AOL defaultAOL )
-        throws MojoExecutionException, MojoFailureException
+    protected void unpackNarAndProcess( ArchiverManager archiverManager
+                                      , File file
+                                      , File narLocation
+                                      , String os
+                                      , String linkerName
+                                      , AOL defaultAOL
+                                      )
+      throws MojoExecutionException, MojoFailureException
     {
-
+        System.out.println("************* Entered unpackNarAndProcess ****************");
         final String gpp = "g++";
         final String gcc = "gcc";
 
@@ -104,6 +112,26 @@ public abstract class AbstractNarLayout
             unArchiver = archiverManager.getUnArchiver( NarConstants.NAR_ROLE_HINT );
             unArchiver.setSourceFile( file );
             unArchiver.setDestDirectory( narLocation );
+            AbstractUnArchiver arch = (AbstractUnArchiver)unArchiver;
+            System.out.println("************* Overwrite: " + arch.isOverwrite() + "****************");
+            unArchiver.setOverwrite(false);
+            FileSelector[] fss = unArchiver.getFileSelectors();
+            if (fss == null)
+            {
+              System.out.println("************* Found file selectors ****************");
+            }
+            else
+            {
+              System.out.println("************* NO file selectors ****************");
+            }
+
+            // Set file selectors.
+            IncludeExcludeFileSelector fs_new = new IncludeExcludeFileSelector();
+            fs_new.setIncludes(null);
+            fs_new.setExcludes(null);
+            IncludeExcludeFileSelector[] fss_new = {fs_new};
+            unArchiver.setFileSelectors(fss_new);
+
             unArchiver.extract();
         }
         catch ( NoSuchArchiverException e )
@@ -147,6 +175,8 @@ public abstract class AbstractNarLayout
 
             NarUtil.runInstallNameTool( dylibDirs, log );
         }
+
+        System.out.println("************* Exiting unpackNarAndProcess ****************");
     }
 
     public String getConfiguration()
